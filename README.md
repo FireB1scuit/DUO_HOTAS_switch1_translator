@@ -32,13 +32,22 @@ One-time setup:
 1. Install HidHide and reboot when asked.
 2. Open **HidHide Configuration Client** (it asks for administrator rights).
 3. **Applications** tab: click **+** and add the `HOSAS Translator.exe` you actually run (or your `python.exe` if you run from source). Only programs listed here can still see hidden devices.
-4. **Devices** tab: tick both T.16000M entries, then tick **Enable device hiding**.
-5. Restart any program that already had the sticks open (the game, Steam), or reboot.
+4. **Devices** tab: tick both `Thrustmaster T.16000M` entries, then tick the **Enable device hiding** checkbox at the bottom left. That checkbox is what the client's "press Enable" hint refers to — there is no separate button, and nothing is hidden until it's ticked. Leave `Controller (XBOX 360 For Windows)` unticked: that is the translator's virtual controller, which the game has to see.
+5. Restart every program that already had the sticks open, or reboot. Hiding only applies when a program opens a device, so anything started earlier keeps its access — this includes Steam, which opens the sticks in the background as soon as it starts.
+
+After that, start things in this order: the translator, **Start** in the translator, then the game.
+
+Checking that it worked:
+
+- The translator still shows **Connected** with both sticks. If it reports 0 sticks, the path on the **Applications** tab doesn't match the `.exe` you're running.
+- The game's controller settings list only the Xbox 360 controller, not the two T.16000Ms. If the sticks still show up, **Enable device hiding** is unticked or the game/Steam wasn't restarted.
 
 Things to know:
 
 - The application list is by file path — if you move or rename the `.exe`, add the new path again or the translator itself will stop finding the sticks.
+- Leave the inverse option on the **Applications** tab off; with it on, the list means the opposite (only the listed programs are blocked).
 - Hiding is global: while it's enabled, no other game or tool sees the sticks directly. Untick **Enable device hiding** when you want to use them without the translator.
+- The translator can't switch hiding on and off for you: HidHide only accepts changes from an administrator, so it's a setting you leave on rather than something tied to the **Start**/**Stop** button.
 
 ### Using the app
 
