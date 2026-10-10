@@ -16,11 +16,29 @@
 
 1. Install the [ViGEmBus driver](https://github.com/ViGEm/ViGEmBus/releases) — this lets `vgamepad` create a virtual Xbox 360 controller on Windows.
 2. Plug in both T.16000M joysticks.
+   - If a game also reacts to the physical sticks, you might need HidHide too — see [Optional: hiding the physical sticks from games](#optional-hiding-the-physical-sticks-from-games-hidhide).
 3. Either grab `HOSAS Translator.exe` from a build (see [Building the .exe](#building-the-exe)) and run it, or run from source:
    ```
    pip install -r requirements.txt
    python gui.py
    ```
+
+### Optional: hiding the physical sticks from games (HidHide)
+
+The translator adds a virtual Xbox 360 controller, but it does not remove the two real T.16000Ms — Windows still shows them to every program. A game that supports joysticks itself can then read both the sticks and the virtual controller at once, which may show up as input that drops out, fights itself, or is bound twice. If you see that, you might need [HidHide](https://github.com/nefarius/HidHide/releases) (free, from the author of ViGEmBus) to hide the sticks from everything except the translator. Windows has no way to do this without a driver like HidHide, so the translator can't do it on its own.
+
+One-time setup:
+
+1. Install HidHide and reboot when asked.
+2. Open **HidHide Configuration Client** (it asks for administrator rights).
+3. **Applications** tab: click **+** and add the `HOSAS Translator.exe` you actually run (or your `python.exe` if you run from source). Only programs listed here can still see hidden devices.
+4. **Devices** tab: tick both T.16000M entries, then tick **Enable device hiding**.
+5. Restart any program that already had the sticks open (the game, Steam), or reboot.
+
+Things to know:
+
+- The application list is by file path — if you move or rename the `.exe`, add the new path again or the translator itself will stop finding the sticks.
+- Hiding is global: while it's enabled, no other game or tool sees the sticks directly. Untick **Enable device hiding** when you want to use them without the translator.
 
 ### Using the app
 
