@@ -475,7 +475,7 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/meta":
                 self._send(200, {
                     "targets": list(config_store.BUTTON_NAME_MAP),
-                    "switch_names": XBOX_TO_SWITCH,
+                    "switch_names": {**XBOX_TO_SWITCH, "LEFT_TRIGGER": "ZL", "RIGHT_TRIGGER": "ZR"},
                     "buttons": config_store.MAPPABLE_BUTTON_INDICES,
                     "hat_directions": [[x, y, label] for x, y, label in config_store.HAT_DIRECTIONS],
                 })

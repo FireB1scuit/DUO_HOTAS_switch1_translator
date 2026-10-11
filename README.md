@@ -180,39 +180,39 @@ If a rebuild fails with a `PermissionError` on `dist\HOSAS Translator.exe`, it's
 The mode follows how many T.16000Ms are plugged in — there is nothing to set:
 
 - **Two sticks (duo mode)** — one per hand: left stick → left stick, right stick → right stick, as in the table below.
-- **One stick (single-stick mode)** — that stick is the whole controller. The stick itself is the controller's left stick (with the left stick's up/down inversion setting), and its trigger, buttons and hat use the **right stick** column of the mapping: with Default the hat is the face buttons (Y / A / X / B), the trigger is RT, and the base buttons are what they always were. There is no right stick, LT or LB in this mode unless you map them in a custom mapping.
+- **One stick (single-stick mode)** — that stick is the whole controller. The stick itself is the controller's left stick (with the left stick's up/down inversion setting), the trigger is RT, and the buttons and hat have their own mapping (the **Single stick** column below), which starts out as the right stick's with the three stick-top buttons changed so one hand reaches both triggers. There is no right stick or LB in this mode unless you map them in a custom mapping.
 
 The phone portal switches by itself when a stick is unplugged or plugged back in. The GUI and the command-line tools decide when they connect, so use **Connect / Refresh** (or restart them) after changing the number of sticks. Which USB port counts as left is only asked for, and only saved, with two sticks.
 
 ## Button mapping
 
-The Default mapping (`DEFAULT_CONFIG` in [config_store.py](config_store.py)) maps buttons as follows; `BUTTON_NAME_MAP` in the same file lists every supported target name, and the Configs tab in the app lets you build your own layout without editing code.
+The Default mapping (`DEFAULT_CONFIG` in [config_store.py](config_store.py)) maps buttons as follows; `BUTTON_NAME_MAP` in the same file lists every supported target name (including LT/RT, so any button can pull a trigger), and the Configs tab in the app lets you build your own layout without editing code.
 
 ![Button mapping diagram](button_mapping.svg)
 
-| T.16000M input | Left stick → | Right stick → |
-| --- | --- | --- |
-| Trigger (button 0) | LT | RT |
-| Button 1 | B | A |
-| Button 2 | Y | RB |
-| Button 3 | LB | X |
-| Hat up | D-Pad up | Y |
-| Hat down | D-Pad down | A |
-| Hat left | D-Pad left | X |
-| Hat right | D-Pad right | B |
-| Hat diagonal (↖) | Left stick click (L3) | Right stick click (R3) |
-| Button 5 | Y | Y |
-| Button 6 | Guide (Xbox button) | Guide (Xbox button) |
-| Button 7 | X | X |
-| Button 8 | A | A |
-| Button 9 | B | B |
-| Button 10 | Back | Back |
-| Button 11 | D-Pad up | D-Pad up |
-| Button 12 | Start | Start |
-| Button 13 | D-Pad right | D-Pad right |
-| Button 14 | D-Pad down | D-Pad down |
-| Button 15 | D-Pad left | D-Pad left |
-| Button 4, 16–19 | unmapped | unmapped |
+| T.16000M input | Left stick → | Right stick → | Single stick → |
+| --- | --- | --- | --- |
+| Trigger (button 0) | LT | RT | RT |
+| Button 1 | B | A | B |
+| Button 2 | Y | RB | LT |
+| Button 3 | LB | X | A |
+| Hat up | D-Pad up | Y | Y |
+| Hat down | D-Pad down | A | A |
+| Hat left | D-Pad left | X | X |
+| Hat right | D-Pad right | B | B |
+| Hat diagonal (↖) | Left stick click (L3) | Right stick click (R3) | Right stick click (R3) |
+| Button 5 | Y | Y | Y |
+| Button 6 | Guide (Xbox button) | Guide (Xbox button) | Guide (Xbox button) |
+| Button 7 | X | X | X |
+| Button 8 | A | A | A |
+| Button 9 | B | B | B |
+| Button 10 | Back | Back | Back |
+| Button 11 | D-Pad up | D-Pad up | D-Pad up |
+| Button 12 | Start | Start | Start |
+| Button 13 | D-Pad right | D-Pad right | D-Pad right |
+| Button 14 | D-Pad down | D-Pad down | D-Pad down |
+| Button 15 | D-Pad left | D-Pad left | D-Pad left |
+| Button 4, 16–19 | unmapped | unmapped | unmapped |
 
 Each stick's throttle slider scales that stick's output: 100% at one end of its travel, falling evenly to 20% at the other, so you can trade reach for precision per hand while playing. In a custom mapping you can turn this off, reverse which end is full sensitivity, or change the lowest value; the Debug panel and the phone portal show each stick's current percentage.
 

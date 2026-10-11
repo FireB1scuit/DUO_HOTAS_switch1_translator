@@ -230,21 +230,31 @@ def throttle_sensitivity(state, config):
     return 1.0 - min(max(travel, 0.0), 1.0) * (1.0 - config["throttle_min_sensitivity"])
 
 
+def _pull_mapped_triggers(vs):
+    """Buttons mapped to a trigger target pull that trigger instead of
+    showing up as a button."""
+    for name, key in config_store.TRIGGER_TARGETS.items():
+        if name in vs["active_buttons"]:
+            vs["active_buttons"].discard(name)
+            vs[key] = 1.0
+    return vs
+
+
 def compute_single_state(state, config):
     """Single-stick mode: one stick is the whole controller. Its axes drive
-    the virtual left stick, and its trigger, buttons and hat go through the
-    right stick's mapping. Same shape as compute_virtual_state()."""
+    the virtual left stick, its trigger is RT, and its buttons and hat go
+    through single_buttons/single_hat. Same shape as compute_virtual_state()."""
     x = apply_deadzone(safe_axis(state["axes"], config["stick_x_axis"]), config["stick_deadzone"])
     y = apply_deadzone(safe_axis(state["axes"], config["stick_y_axis"]), config["stick_deadzone"])
     if config["invert_y_left"]:
         y = -y
     sensitivity = throttle_sensitivity(state, config)
-    return {
+    return _pull_mapped_triggers({
         "lx": x * sensitivity, "ly": y * sensitivity, "rx": 0.0, "ry": 0.0,
         "lt": 0.0, "rt": 1.0 if safe_button(state["buttons"], config["trigger_button"]) else 0.0,
         "left_sensitivity": sensitivity, "right_sensitivity": 1.0,
-        "active_buttons": _active_target_names(state, config["right_buttons"], config["right_hat"]),
-    }
+        "active_buttons": _active_target_names(state, config["single_buttons"], config["single_hat"]),
+    })
 
 
 def compute_virtual_state(left_state, right_state, config):
@@ -279,11 +289,11 @@ def compute_virtual_state(left_state, right_state, config):
     active_buttons = _active_target_names(left_state, config["left_buttons"], config["left_hat"])
     active_buttons |= _active_target_names(right_state, config["right_buttons"], config["right_hat"])
 
-    return {
+    return _pull_mapped_triggers({
         "lx": lx, "ly": ly, "rx": rx, "ry": ry, "lt": lt, "rt": rt,
         "left_sensitivity": left_sensitivity, "right_sensitivity": right_sensitivity,
         "active_buttons": active_buttons,
-    }
+    })
 
 
 class GamepadController:
@@ -307,8 +317,10 @@ class GamepadController:
         mapped_names = (
             set(config["left_buttons"].values())
             | set(config["right_buttons"].values())
+            | set(config["single_buttons"].values())
             | set(config["left_hat"].values())
             | set(config["right_hat"].values())
+            | set(config["single_hat"].values())
         )
         self.all_buttons = self._vg_buttons(mapped_names)
 

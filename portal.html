@@ -138,6 +138,7 @@ const XBOX_LABELS = {
   A: "A", B: "B", X: "X", Y: "Y", LEFT_SHOULDER: "LB", RIGHT_SHOULDER: "RB",
   DPAD_UP: "D-pad up", DPAD_DOWN: "D-pad down", DPAD_LEFT: "D-pad left", DPAD_RIGHT: "D-pad right",
   LEFT_THUMB: "Left stick click", RIGHT_THUMB: "Right stick click", BACK: "Back", START: "Start", GUIDE: "Guide", CAPTURE: "Capture (Switch only)",
+  LEFT_TRIGGER: "LT", RIGHT_TRIGGER: "RT",
 };
 const SWITCH_LABELS = { MINUS: "−", PLUS: "+", HOME: "Home", CAPTURE: "Capture" };
 
@@ -189,9 +190,9 @@ function render(next) {
 }
 
 // One stick plugged in: it is the whole controller. The server reports it as
-// "left", and it uses the right stick's button and hat mapping.
+// "left", and it has its own button and hat mapping.
 const single = () => status.sticks.mode === "single";
-const mapSide = () => (single() ? "right" : side);
+const mapSide = () => (single() ? "single" : side);
 
 function renderSwitch() {
   const sw = status.switch;
@@ -330,7 +331,7 @@ function buildEditor() {
   const triggerName = status.switch.available ? (side === "left" ? "ZL" : "ZR") : (side === "left" ? "LT" : "RT");
   const note = document.createElement("p");
   note.className = "hint";
-  note.textContent = (single() ? "Single-stick mode: the stick is the left stick, and its buttons and hat use the right stick's mapping below. " : "")
+  note.textContent = (single() ? "Single-stick mode: the stick is the left stick, with its own buttons and hat below. " : "")
     + `The trigger is always ${triggerName}. Press something on the stick to see which row it is.`;
   map.append(note);
 

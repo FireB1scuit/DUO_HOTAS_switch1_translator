@@ -3,8 +3,8 @@ CLI entry point: combines two Thrustmaster T.16000M joysticks into a single
 virtual Xbox 360 controller: left stick -> left stick, right stick -> right
 stick, and each stick's trigger button -> that side's analog trigger (LT/RT).
 With only one stick plugged in, that stick is the whole controller instead:
-its axes are the left stick and its trigger, buttons and hat use the right
-stick's mapping.
+its axes are the left stick, its trigger is RT, and its buttons and hat use
+the config's single-stick mapping.
 
 Setup:
     1. Install ViGEmBus driver: https://github.com/ViGEm/ViGEmBus/releases

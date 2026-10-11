@@ -82,7 +82,37 @@ DEFAULT_CONFIG = {
         "-1,0": "X",
         "-1,-1": "RIGHT_THUMB",
     },
+    # Single-stick mode (one stick plugged in, see MODE_SINGLE): the right
+    # stick's mapping with the stick-top buttons changed, since one hand has
+    # to reach both triggers. The trigger itself is always RT.
+    "single_buttons": {
+        "1": "B",
+        "2": "LEFT_TRIGGER",
+        "3": "A",
+        "5": "Y",
+        "6": "GUIDE",
+        "7": "X",
+        "8": "A",
+        "9": "B",
+        "10": "BACK",
+        "11": "DPAD_UP",
+        "12": "START",
+        "13": "DPAD_RIGHT",
+        "14": "DPAD_DOWN",
+        "15": "DPAD_LEFT",
+    },
+    "single_hat": {
+        "0,1": "Y",
+        "0,-1": "A",
+        "1,0": "B",
+        "-1,0": "X",
+        "-1,-1": "RIGHT_THUMB",
+    },
 }
+
+# Stick-top buttons of single-stick mode, as in DEFAULT_CONFIG: applied over
+# the right stick's mapping for configs saved before the mode existed.
+SINGLE_TOP_BUTTONS = {"1": "B", "2": "LEFT_TRIGGER", "3": "A"}
 
 # Maps the button names used in config files to vgamepad's XUSB_BUTTON enum.
 # None means the Xbox 360 pad has no such button: the name is still a valid
@@ -104,15 +134,23 @@ BUTTON_NAME_MAP = {
     "START": "XUSB_GAMEPAD_START",
     "GUIDE": "XUSB_GAMEPAD_GUIDE",
     "CAPTURE": None,
+    # The analog triggers, pulled fully while held. Not XUSB buttons: see
+    # TRIGGER_TARGETS.
+    "LEFT_TRIGGER": None,
+    "RIGHT_TRIGGER": None,
 }
+
+# Button targets that pull a trigger (the virtual state's "lt"/"rt") instead
+# of pressing a button.
+TRIGGER_TARGETS = {"LEFT_TRIGGER": "lt", "RIGHT_TRIGGER": "rt"}
 
 UNMAPPED = "(unmapped)"
 
 # How the sticks make up the controller, decided by how many are plugged in:
 #   - "duo": two sticks, one per hand - left stick/right stick of the pad.
 #   - "single": one stick is the whole pad. Its axes are the pad's left
-#     stick, and its trigger, buttons and hat use the right stick's mapping
-#     (so with Default the hat is the face buttons).
+#     stick, its trigger is RT, and its buttons and hat use the config's
+#     single_buttons/single_hat (with Default the hat is the face buttons).
 MODE_DUO = "duo"
 MODE_SINGLE = "single"
 
@@ -129,7 +167,7 @@ HAT_DIRECTIONS = [
 ]
 
 # T.16000M buttons other than the trigger (button 0, which is hardcoded to
-# LT/RT and isn't part of left_buttons/right_buttons) that the hardware
+# LT/RT and isn't part of the button mappings) that the hardware
 # reports. Used to build the editor's button-mapping table.
 MAPPABLE_BUTTON_INDICES = list(range(1, 20))
 
@@ -188,6 +226,12 @@ def load_config(name):
     with open(path, "r") as f:
         config = json.load(f)
     merged = {**DEFAULT_CONFIG, **config}
+    # Saved before single-stick mode existed: base it on this config's own
+    # right stick rather than on Default's.
+    if "single_buttons" not in config:
+        merged["single_buttons"] = {**merged["right_buttons"], **SINGLE_TOP_BUTTONS}
+    if "single_hat" not in config:
+        merged["single_hat"] = dict(merged["right_hat"])
     return merged
 
 
@@ -251,11 +295,11 @@ def validate_config(config):
         raise ValueError(f"Config is missing keys: {', '.join(missing)}")
     if not 0.05 <= config["throttle_min_sensitivity"] <= 1:
         raise ValueError("Lowest throttle sensitivity must be between 0.05 and 1.")
-    for section in ("left_buttons", "right_buttons"):
+    for section in ("left_buttons", "right_buttons", "single_buttons"):
         for name in config[section].values():
             if name not in BUTTON_NAME_MAP:
                 raise ValueError(f"Unknown button name {name!r} in {section}")
-    for section in ("left_hat", "right_hat"):
+    for section in ("left_hat", "right_hat", "single_hat"):
         for name in config[section].values():
             if name not in BUTTON_NAME_MAP:
                 raise ValueError(f"Unknown button name {name!r} in {section}")

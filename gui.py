@@ -252,9 +252,9 @@ class App(tk.Tk):
         self.schematic.set_active(vs["active_buttons"], vs["lt"], vs["rt"], vs["lx"], vs["ly"], vs["rx"], vs["ry"])
 
         if right is None:
-            # Single-stick mode: the one stick drives the left stick but
-            # uses the right stick's trigger, button and hat mapping.
-            rows = (("left", left, vs["lx"], vs["ly"], vs["rt"], cfg["right_buttons"], cfg["right_hat"], "RT"),)
+            # Single-stick mode: the one stick drives the left stick, with
+            # RT on its trigger and its own button and hat mapping.
+            rows = (("left", left, vs["lx"], vs["ly"], vs["rt"], cfg["single_buttons"], cfg["single_hat"], "RT"),)
             self.debug_widgets["right"]["name"].config(text="Not connected (single-stick mode)")
         else:
             rows = (
@@ -612,6 +612,8 @@ class MappingEditor(ttk.Frame):
     def load(self, name, config, read_only):
         self.name = name
         self.read_only = read_only
+        # Not editable here (the phone portal edits it), but has to survive a save.
+        self._single_mapping = {key: dict(config[key]) for key in ("single_buttons", "single_hat")}
         self.title_label.config(text=f"{name}{' (read-only)' if read_only else ''}")
 
         for key in (
@@ -665,6 +667,7 @@ class MappingEditor(ttk.Frame):
             "throttle_invert": self._vars["throttle_invert"].get(),
             "throttle_axis": self._vars["throttle_axis"].get(),
             "throttle_min_sensitivity": round(self._vars["throttle_min_sensitivity"].get(), 2),
+            **self._single_mapping,
         }
         for key in ("left_buttons", "right_buttons"):
             config[key] = {
