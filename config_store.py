@@ -30,6 +30,12 @@ DEFAULT_CONFIG = {
     "trigger_button": 0,
     "stick_deadzone": 0.05,
     "poll_hz": 125,
+    # Each stick's throttle slider scales that stick's output: full at one
+    # end of its travel, throttle_min_sensitivity at the other.
+    "throttle_sensitivity": True,
+    "throttle_axis": 3,
+    "throttle_invert": False,
+    "throttle_min_sensitivity": 0.2,
     "left_buttons": {
         "1": "B",
         "2": "Y",
@@ -232,6 +238,8 @@ def validate_config(config):
     missing = [key for key in DEFAULT_CONFIG if key not in config]
     if missing:
         raise ValueError(f"Config is missing keys: {', '.join(missing)}")
+    if not 0.05 <= config["throttle_min_sensitivity"] <= 1:
+        raise ValueError("Lowest throttle sensitivity must be between 0.05 and 1.")
     for section in ("left_buttons", "right_buttons"):
         for name in config[section].values():
             if name not in BUTTON_NAME_MAP:

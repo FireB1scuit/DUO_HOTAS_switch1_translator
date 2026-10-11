@@ -9,7 +9,7 @@
 - [x] map joystick hat to arrows and XABY
 - [x] Windows GUI app with debug view, recalibration, and custom mapping profiles
 - [x] runs on Linux too (virtual controller via uinput)
-- [ ] map throttle button (slider left = mouse sensitivity, slider right = volume)
+- [x] throttle slider sets that stick's sensitivity
 - [ ] map extra button on base
 - [ ] map horizontal X rotation for X joystick acceleration
 
@@ -67,7 +67,7 @@ sudo env HOME=$HOME .venv/bin/python web_portal.py      # then open http://<this
 
 - **Nintendo Switch** — Connect/Disconnect the emulated controller, **Pairing mode** for a Switch that doesn't know it yet (open **Controllers → Change Grip/Order** on the Switch), and a picker for which paired Switch to reconnect to when there is more than one.
 - **Sticks** — shows which USB port is Left and which is Right with a live dot per stick. **Swap sides** flips them; **Wiggle to set** makes whichever stick you move the left one. The choice is saved per USB port.
-- **Button mapping** — pick the active mapping and edit custom ones; the row for whatever you press on a stick lights up. Changes save as you make them and apply immediately.
+- **Button mapping** — pick the active mapping and edit custom ones (buttons, hats, Y-inversion, throttle sensitivity); the row for whatever you press on a stick lights up. Changes save as you make them and apply immediately.
 
 Everything is remembered (same files as the GUI), including whether it was connected — so after a restart it reconnects to the Switch by itself. `--port N` / `--host ADDR` change where it listens; `--no-switch` runs it without root or Bluetooth, for editing mappings only. There is no login: anyone on your network can open the page.
 
@@ -132,7 +132,7 @@ Things to know:
 - **Control** — shows connection status, lets you pick the active mapping, and has the Start/Stop button that turns the virtual Xbox 360 controller on and off.
 - **Debug** — a live Xbox 360 controller schematic (ABXY in their real colors, D-pad, bumpers/triggers, sticks, Back/Guide/Start) that lights up as you press things, so you can see exactly what's reaching the virtual controller. Below it, the raw per-stick axis/button/hat values plus each pressed button's mapped target (e.g. `1→B`), useful for confirming your hardware's indices.
 - **Calibration** — both T.16000M units report identical hardware IDs with no serial, so left/right is determined once by wiggling the left stick; the result is cached (on Linux per USB port) so this normally only runs the first time. If you swap which stick is in which USB port, use **Recalibrate** here.
-- **Configs** — browse the built-in **Default** mapping (read-only) and any custom mappings you've made. **New from Default** clones it into an editable copy; the editor lets you point-and-click a target Xbox button for every stick button and hat direction, plus axis indices, deadzone, poll rate, and Y-inversion — no JSON editing needed. **Set as Active** switches which mapping the Control tab's virtual controller uses.
+- **Configs** — browse the built-in **Default** mapping (read-only) and any custom mappings you've made. **New from Default** clones it into an editable copy; the editor lets you point-and-click a target Xbox button for every stick button and hat direction, plus axis indices, deadzone, poll rate, Y-inversion, and the throttle sensitivity settings — no JSON editing needed. **Set as Active** switches which mapping the Control tab's virtual controller uses.
 
 All of this is stored per-user under `%APPDATA%\HOSAS_Translator\` (the Default mapping, your custom mappings, the USB-port calibration cache, and which mapping was last active), so it's independent of where the app is installed or run from.
 
@@ -204,6 +204,8 @@ The Default mapping (`DEFAULT_CONFIG` in [config_store.py](config_store.py)) map
 | Button 14 | D-Pad down | D-Pad down |
 | Button 15 | D-Pad left | D-Pad left |
 | Button 4, 16–19 | unmapped | unmapped |
+
+Each stick's throttle slider scales that stick's output: 100% at one end of its travel, falling evenly to 20% at the other, so you can trade reach for precision per hand while playing. In a custom mapping you can turn this off, reverse which end is full sensitivity, or change the lowest value; the Debug panel and the phone portal show each stick's current percentage.
 
 Button 4 (screenshot/share) has no Xbox 360 equivalent — `VX360Gamepad` emulates a 360 pad, which predates that button.
 

@@ -36,7 +36,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")  # no display when run under s
 import pygame
 
 import config_store
-from stick_engine import StickManager, compute_virtual_state, list_stick_ports
+from stick_engine import StickManager, compute_virtual_state, list_stick_ports, throttle_sensitivity
 from switch_bridge import XBOX_TO_SWITCH, build_packet, start_pairing_agent
 
 PAGE_PATH = Path(__file__).with_name("portal.html")
@@ -306,6 +306,7 @@ class Portal:
         sticks = {"connected": connected, "message": self.sticks_message}
         if connected:
             snap = self.manager.get_snapshot()
+            config = self.manager.config
             ports = dict(zip(("left", "right"), self.manager.stick_ports()))
             for side in ("left", "right"):
                 state = snap.get(side)
@@ -317,6 +318,7 @@ class Portal:
                     "y": round(state["axes"][1], 3) if len(state["axes"]) > 1 else 0,
                     "buttons": [i for i, pressed in enumerate(state["buttons"]) if pressed],
                     "hat": list(state["hat"]),
+                    "sensitivity": round(throttle_sensitivity(state, config), 2),
                 }
         identify_until = self._identify_until
         return {

@@ -256,7 +256,10 @@ class App(tk.Tk):
         ):
             widgets = self.debug_widgets[side]
             widgets["name"].config(text=state["name"])
-            widgets["processed"].config(text=f"x={x:+.2f} y={y:+.2f}  trigger={bool(trig)}")
+            sensitivity = vs[f"{side}_sensitivity"]
+            widgets["processed"].config(
+                text=f"x={x:+.2f} y={y:+.2f}  trigger={bool(trig)}  sensitivity={sensitivity:.0%}"
+            )
 
             axes_text = "  ".join(f"{i}:{v:+.2f}" for i, v in enumerate(state["axes"]))
             widgets["axes"].config(text=f"axes: {axes_text}")
@@ -537,6 +540,25 @@ class MappingEditor(ttk.Frame):
         self._vars["invert_y_left"] = left_invert
         self._vars["invert_y_right"] = right_invert
 
+        throttle_on = tk.BooleanVar()
+        throttle_invert = tk.BooleanVar()
+        ttk.Checkbutton(frame, text="Throttle sets sensitivity", variable=throttle_on).grid(
+            row=6, column=0, sticky="w", pady=2
+        )
+        ttk.Checkbutton(frame, text="Reverse throttle", variable=throttle_invert).grid(
+            row=6, column=1, sticky="w", pady=2
+        )
+        self._vars["throttle_sensitivity"] = throttle_on
+        self._vars["throttle_invert"] = throttle_invert
+        spin(7, "throttle_axis", "Throttle axis index", 0, 7)
+
+        min_sensitivity_var = tk.DoubleVar()
+        ttk.Label(frame, text="Lowest throttle sensitivity").grid(row=8, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Scale(frame, from_=0.05, to=1.0, orient="horizontal", variable=min_sensitivity_var, length=160).grid(
+            row=8, column=1, sticky="w"
+        )
+        self._vars["throttle_min_sensitivity"] = min_sensitivity_var
+
     def _build_mapping_section(self, key, title, indices):
         frame = ttk.LabelFrame(self.body, text=title, padding=10)
         frame.pack(fill="x", padx=4, pady=6)
@@ -580,7 +602,10 @@ class MappingEditor(ttk.Frame):
         self.read_only = read_only
         self.title_label.config(text=f"{name}{' (read-only)' if read_only else ''}")
 
-        for key in ("stick_x_axis", "stick_y_axis", "trigger_button", "poll_hz", "stick_deadzone"):
+        for key in (
+            "stick_x_axis", "stick_y_axis", "trigger_button", "poll_hz", "stick_deadzone",
+            "throttle_sensitivity", "throttle_invert", "throttle_axis", "throttle_min_sensitivity",
+        ):
             self._vars[key].set(config[key])
         self._vars["invert_y_left"].set(config["invert_y_left"])
         self._vars["invert_y_right"].set(config["invert_y_right"])
@@ -624,6 +649,10 @@ class MappingEditor(ttk.Frame):
             "stick_deadzone": round(self._vars["stick_deadzone"].get(), 3),
             "invert_y_left": self._vars["invert_y_left"].get(),
             "invert_y_right": self._vars["invert_y_right"].get(),
+            "throttle_sensitivity": self._vars["throttle_sensitivity"].get(),
+            "throttle_invert": self._vars["throttle_invert"].get(),
+            "throttle_axis": self._vars["throttle_axis"].get(),
+            "throttle_min_sensitivity": round(self._vars["throttle_min_sensitivity"].get(), 2),
         }
         for key in ("left_buttons", "right_buttons"):
             config[key] = {

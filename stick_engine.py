@@ -217,6 +217,18 @@ def _active_target_names(state, button_map, hat_map):
     return active
 
 
+def throttle_sensitivity(state, config):
+    """0..1 factor one stick's throttle slider currently sets for that
+    stick: 1.0 with the slider at its rest end (raw -1, or +1 when
+    inverted), falling linearly to throttle_min_sensitivity at the other."""
+    if not config["throttle_sensitivity"]:
+        return 1.0
+    travel = (safe_axis(state["axes"], config["throttle_axis"]) + 1.0) / 2.0
+    if config["throttle_invert"]:
+        travel = 1.0 - travel
+    return 1.0 - min(max(travel, 0.0), 1.0) * (1.0 - config["throttle_min_sensitivity"])
+
+
 def compute_virtual_state(left_state, right_state, config):
     """Maps raw left/right stick state through a config into what the
     virtual controller would show: processed stick axes, LT/RT, and the set
@@ -232,6 +244,11 @@ def compute_virtual_state(left_state, right_state, config):
     if config["invert_y_right"]:
         ry = -ry
 
+    left_sensitivity = throttle_sensitivity(left_state, config)
+    right_sensitivity = throttle_sensitivity(right_state, config)
+    lx, ly = lx * left_sensitivity, ly * left_sensitivity
+    rx, ry = rx * right_sensitivity, ry * right_sensitivity
+
     trig_index = config["trigger_button"]
     lt = 1.0 if safe_button(left_state["buttons"], trig_index) else 0.0
     rt = 1.0 if safe_button(right_state["buttons"], trig_index) else 0.0
@@ -239,7 +256,11 @@ def compute_virtual_state(left_state, right_state, config):
     active_buttons = _active_target_names(left_state, config["left_buttons"], config["left_hat"])
     active_buttons |= _active_target_names(right_state, config["right_buttons"], config["right_hat"])
 
-    return {"lx": lx, "ly": ly, "rx": rx, "ry": ry, "lt": lt, "rt": rt, "active_buttons": active_buttons}
+    return {
+        "lx": lx, "ly": ly, "rx": rx, "ry": ry, "lt": lt, "rt": rt,
+        "left_sensitivity": left_sensitivity, "right_sensitivity": right_sensitivity,
+        "active_buttons": active_buttons,
+    }
 
 
 class GamepadController:
