@@ -36,12 +36,15 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")  # no display when run under s
 import pygame
 
 import config_store
-from stick_engine import StickManager, Ticker, compute_virtual_state, list_stick_ports
+from stick_engine import StickManager, compute_virtual_state, list_stick_ports
 from switch_bridge import XBOX_TO_SWITCH, build_packet, start_pairing_agent
 
 PAGE_PATH = Path(__file__).with_name("portal.html")
 MAX_BODY_BYTES = 64 * 1024
 IDENTIFY_SECONDS = 15
+# The sticks report over USB every 10 ms; reading them much more often than
+# the mapping configs' 125 Hz keeps the wait for the next read short.
+STICK_POLL_HZ = 500
 IDENTIFY_THRESHOLD = 0.5
 NEUTRAL_STATE = {"lx": 0.0, "ly": 0.0, "rx": 0.0, "ry": 0.0, "lt": 0.0, "rt": 0.0, "active_buttons": set()}
 
@@ -135,9 +138,13 @@ class Portal:
 
     # -- worker -------------------------------------------------------
     def run(self):
-        ticker = Ticker(self.manager.config["poll_hz"])
         next_check = 0.0
         while self._running:
+            # Wake the moment the poll thread sees the sticks change, rather
+            # than sampling its result on a second timer; the timeout only
+            # keeps the checks below running while nothing moves.
+            self.manager.changed.wait(timeout=0.02)
+            self.manager.changed.clear()
             now = time.monotonic()
             if now >= next_check:
                 next_check = now + 0.25
@@ -153,7 +160,6 @@ class Portal:
                 self._send_input()
             except Exception as exc:
                 self.link_error = str(exc)
-            ticker.wait()
 
     def stop(self):
         self._running = False
@@ -188,7 +194,7 @@ class Portal:
             # take the ports in order and let the page swap them.
             self.manager.assign(sticks, should_abort=lambda: True)
             fix_ownership()
-            self.manager.start_polling()
+            self.manager.start_polling(poll_hz=STICK_POLL_HZ)
         except Exception as exc:
             self.sticks_message = f"Could not open the sticks: {exc}"
             return

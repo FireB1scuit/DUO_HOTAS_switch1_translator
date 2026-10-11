@@ -320,6 +320,11 @@ class StickManager:
         self._gamepad_lock = threading.Lock()
         self.gamepad_active = False
         self.last_error = None
+        # Set by the poll thread whenever a read differs from the one before,
+        # so a consumer can wait on it and react right away instead of
+        # sampling on a timer of its own.
+        self.changed = threading.Event()
+        self._poll_hz = None
 
     # -- connection -------------------------------------------------
     def find_sticks(self):
@@ -360,10 +365,12 @@ class StickManager:
                 self._gamepad.set_config(config)
 
     # -- polling ------------------------------------------------------
-    def start_polling(self):
+    def start_polling(self, poll_hz=None):
+        """poll_hz overrides the config's rate for this run."""
         if self._running:
             return
         self._running = True
+        self._poll_hz = poll_hz
         set_high_res_timer(True)
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
@@ -377,10 +384,15 @@ class StickManager:
         set_high_res_timer(False)
 
     def _poll_loop(self):
-        ticker = Ticker(self.config.get("poll_hz", 125))
+        ticker = Ticker(self._poll_hz or self.config.get("poll_hz", 125))
+        last_raw = None
         while self._running:
             try:
                 pygame.event.pump()
+                # Nothing here reads the event queue, and once it fills up
+                # (a few minutes of stick movement) every pump() takes ~12 ms
+                # instead of ~0.1 ms - so throw the events away as they come.
+                pygame.event.clear()
                 with self._lock:
                     left, right = self.left, self.right
                 left_raw = read_raw_state(left)
@@ -390,6 +402,9 @@ class StickManager:
                         "left": {"name": left.get_name(), **left_raw},
                         "right": {"name": right.get_name(), **right_raw},
                     }
+                if (left_raw, right_raw) != last_raw:
+                    last_raw = (left_raw, right_raw)
+                    self.changed.set()
                 with self._gamepad_lock:
                     if self.gamepad_active and self._gamepad is not None:
                         self._gamepad.update(left_raw, right_raw)
