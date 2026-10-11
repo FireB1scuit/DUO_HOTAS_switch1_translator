@@ -198,21 +198,34 @@ def _state_path():
     return app_data_dir() / "state.json"
 
 
-def get_last_active_config():
-    path = _state_path()
-    if not path.exists():
-        return DEFAULT_CONFIG_NAME
+def _load_state():
     try:
-        with open(path, "r") as f:
-            name = json.load(f).get("active_config", DEFAULT_CONFIG_NAME)
+        with open(_state_path(), "r") as f:
+            state = json.load(f)
     except (json.JSONDecodeError, OSError):
-        return DEFAULT_CONFIG_NAME
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def get_setting(key, default=None):
+    """A value remembered between runs (see set_setting)."""
+    return _load_state().get(key, default)
+
+
+def set_setting(key, value):
+    state = _load_state()
+    state[key] = value
+    with open(_state_path(), "w") as f:
+        json.dump(state, f)
+
+
+def get_last_active_config():
+    name = get_setting("active_config", DEFAULT_CONFIG_NAME)
     return name if name in list_config_names() else DEFAULT_CONFIG_NAME
 
 
 def set_last_active_config(name):
-    with open(_state_path(), "w") as f:
-        json.dump({"active_config": name}, f)
+    set_setting("active_config", name)
 
 
 def validate_config(config):

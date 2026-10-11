@@ -10,6 +10,7 @@ toggle are just two consumers of that one loop, not two separate pollers.
 
 import ctypes
 import gc
+import glob
 import json
 import os
 import sys
@@ -60,27 +61,84 @@ def apply_deadzone(value, deadzone):
     return sign * min(scaled, 1.0)
 
 
+def list_stick_ports():
+    """Linux only: [(usb_port, event_device)] for every plugged-in stick,
+    sorted by port, e.g. [("1.3", "/dev/input/event7"), ("1.4", ...)].
+
+    The port is the hub/port chain the kernel reports, so it names a physical
+    USB socket - the only thing that tells two T.16000Ms apart. Empty on
+    other platforms."""
+    if not sys.platform.startswith("linux"):
+        return []
+    found = []
+    for name_file in glob.glob("/sys/class/input/event*/device/name"):
+        device_dir = os.path.dirname(name_file)
+        try:
+            with open(name_file) as f:
+                name = f.read()
+            with open(os.path.join(device_dir, "phys")) as f:
+                phys = f.read().strip()
+        except OSError:
+            continue
+        if STICK_NAME_HINT not in name:
+            continue
+        # phys looks like "usb-0000:01:00.0-1.4/input0"
+        port = phys.split("/")[0].rsplit("-", 1)[-1]
+        found.append((port, "/dev/input/" + os.path.basename(os.path.dirname(device_dir))))
+    return sorted(found)
+
+
+# USB port of each stick returned by the last discover_joysticks(), in the
+# same order; empty when the ports aren't known (Windows).
+_stick_ports = []
+
+
 def discover_joysticks():
+    global _stick_ports
+    ports = list_stick_ports()
+    if ports:
+        # SDL opens the devices named here first and in this order, which
+        # pins the joystick order to the USB ports instead of to whichever
+        # stick the kernel happened to enumerate first.
+        os.environ["SDL_JOYSTICK_DEVICE"] = ":".join(device for _, device in ports)
     pygame.joystick.quit()
     pygame.joystick.init()
     all_joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-    return [j for j in all_joysticks if STICK_NAME_HINT in j.get_name()], all_joysticks
+    sticks = [j for j in all_joysticks if STICK_NAME_HINT in j.get_name()]
+    _stick_ports = [port for port, _ in ports] if len(ports) == len(sticks) else []
+    return sticks, all_joysticks
 
 
-def load_cached_left_index():
+def stick_port(joysticks, joy):
+    """USB port of joy (one of the sticks from the last discovery), or None."""
+    if len(_stick_ports) != len(joysticks):
+        return None
+    return _stick_ports[joysticks.index(joy)]
+
+
+def load_cached_left_index(joysticks):
+    """Index into joysticks of the stick calibrated as left, or None. The
+    USB port wins when it's known; the bare index is the fallback."""
     path = config_store.calibration_path()
     if not path.exists():
         return None
     try:
         with open(path, "r") as f:
-            return json.load(f).get("left_index")
+            cache = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
+    if len(_stick_ports) == len(joysticks) and cache.get("left_port") in _stick_ports:
+        return _stick_ports.index(cache["left_port"])
+    return cache.get("left_index")
 
 
-def save_cached_left_index(left_index):
+def save_cached_left(joysticks, left):
+    cache = {"left_index": joysticks.index(left)}
+    port = stick_port(joysticks, left)
+    if port is not None:
+        cache["left_port"] = port
     with open(config_store.calibration_path(), "w") as f:
-        json.dump({"left_index": left_index}, f)
+        json.dump(cache, f)
 
 
 def wait_for_active_stick(joysticks, threshold=0.5, timeout=15, axes=(0, 1), progress_cb=None, should_abort=None):
@@ -109,7 +167,7 @@ def identify_sticks(joysticks, recalibrate=False, status_cb=None, progress_cb=No
     status_cb = status_cb or (lambda msg: None)
 
     if not recalibrate:
-        cached_index = load_cached_left_index()
+        cached_index = load_cached_left_index(joysticks)
         if cached_index is not None and 0 <= cached_index < len(joysticks):
             left = joysticks[cached_index]
             right = next(j for j in joysticks if j is not left)
@@ -122,7 +180,7 @@ def identify_sticks(joysticks, recalibrate=False, status_cb=None, progress_cb=No
         status_cb("Calibration cancelled or timed out; defaulting to enumeration order.")
         left = joysticks[0]
     right = next(j for j in joysticks if j is not left)
-    save_cached_left_index(joysticks.index(left))
+    save_cached_left(joysticks, left)
     status_cb(f"Left  -> {left.get_name()}\nRight -> {right.get_name()}")
     return left, right, False
 
@@ -252,6 +310,7 @@ class StickManager:
     def __init__(self):
         self.left = None
         self.right = None
+        self._sticks = []
         self.config = dict(config_store.DEFAULT_CONFIG)
         self._lock = threading.Lock()
         self._state = {"left": None, "right": None}
@@ -271,8 +330,24 @@ class StickManager:
         left, right, used_cache = identify_sticks(
             sticks, recalibrate=recalibrate, status_cb=status_cb, progress_cb=progress_cb, should_abort=should_abort
         )
-        self.left, self.right = left, right
+        with self._lock:
+            self._sticks = list(sticks)
+            self.left, self.right = left, right
         return used_cache
+
+    def swap_sticks(self):
+        """Makes the other stick the left one and remembers it, without
+        having to stop polling."""
+        with self._lock:
+            self.left, self.right = self.right, self.left
+            save_cached_left(self._sticks, self.left)
+
+    def stick_ports(self):
+        """(left, right) USB ports, each None where unknown."""
+        with self._lock:
+            if not self._sticks or self.left is None:
+                return None, None
+            return stick_port(self._sticks, self.left), stick_port(self._sticks, self.right)
 
     def is_connected(self):
         return self.left is not None and self.right is not None
@@ -306,13 +381,14 @@ class StickManager:
         while self._running:
             try:
                 pygame.event.pump()
-                left_raw = read_raw_state(self.left)
-                right_raw = read_raw_state(self.right)
                 with self._lock:
-                    config = self.config
+                    left, right = self.left, self.right
+                left_raw = read_raw_state(left)
+                right_raw = read_raw_state(right)
+                with self._lock:
                     self._state = {
-                        "left": {"name": self.left.get_name(), **left_raw},
-                        "right": {"name": self.right.get_name(), **right_raw},
+                        "left": {"name": left.get_name(), **left_raw},
+                        "right": {"name": right.get_name(), **right_raw},
                     }
                 with self._gamepad_lock:
                     if self.gamepad_active and self._gamepad is not None:

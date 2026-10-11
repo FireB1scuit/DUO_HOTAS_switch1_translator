@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171c">
+<title>HOSAS Portal</title>
+<style>
+  :root {
+    --bg: #14171c; --card: #1e232b; --line: #2f3742; --text: #e8ecf1; --muted: #95a0ae;
+    --accent: #4f9cff; --accent-text: #06203f; --good: #3ecf8e; --warn: #f2b84b; --bad: #ff6b6b;
+    --field: #262c36; --hot: rgba(79, 156, 255, .22);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f4f7; --card: #ffffff; --line: #d9dee5; --text: #18202b; --muted: #5d6877;
+      --accent: #1f6fe0; --accent-text: #ffffff; --good: #14875a; --warn: #a86a00; --bad: #c9302c;
+      --field: #f2f4f7; --hot: rgba(31, 111, 224, .16);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 12px 12px calc(24px + env(safe-area-inset-bottom));
+  }
+  main { max-width: 560px; margin: 0 auto; display: grid; gap: 12px; }
+  h1 { font-size: 18px; margin: 4px 4px 0; }
+  h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  button, select, input[type=text] {
+    font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line);
+    border-radius: 10px; min-height: 46px; padding: 0 14px;
+  }
+  button { cursor: pointer; font-weight: 600; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.danger { color: var(--bad); }
+  button:disabled, select:disabled { opacity: .5; cursor: default; }
+  select { width: 100%; appearance: none; -webkit-appearance: none; padding-right: 30px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .stack { display: grid; gap: 10px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0; }
+  .error { color: var(--bad); font-size: 14px; margin: 0; overflow-wrap: anywhere; }
+  .state { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.good { background: var(--good); }
+  .dot.warn { background: var(--warn); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .sticks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stick { border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+  .stick b { display: block; font-size: 17px; }
+  .stick .port { color: var(--muted); font-size: 13px; }
+  .pad { position: relative; width: 84px; height: 84px; margin: 8px auto; border-radius: 50%; border: 2px solid var(--line); background: var(--field); }
+  .pad i { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px; border-radius: 50%; background: var(--accent); }
+  .pressed { min-height: 20px; font-size: 13px; color: var(--muted); }
+
+  .tabs { display: flex; gap: 6px; }
+  .tabs button { flex: 1; min-height: 40px; }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .map { display: grid; gap: 6px; }
+  .map h3 { font-size: 13px; color: var(--muted); margin: 10px 0 2px; font-weight: 600; }
+  .map label { display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 10px; }
+  .map label.hot { background: var(--hot); }
+  .map select { min-height: 42px; }
+  .check { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+  .check input { width: 22px; height: 22px; }
+  #saved { font-size: 13px; color: var(--good); min-height: 18px; text-align: right; }
+  #saved.bad { color: var(--bad); }
+  #offline { display: none; background: var(--bad); color: #fff; border-radius: 10px; padding: 10px 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>HOSAS Portal</h1>
+  <div id="offline">Lost contact with the translator.</div>
+
+  <section id="switch-card">
+    <h2>Nintendo Switch</h2>
+    <div class="stack">
+      <div class="state"><span class="dot" id="link-dot"></span><span id="link-text">…</span></div>
+      <p class="hint" id="link-hint"></p>
+      <p class="error" id="link-error"></p>
+      <div class="row">
+        <button class="primary" id="connect-btn">Connect</button>
+        <button id="pair-btn">Pairing mode</button>
+      </div>
+      <label class="stack" id="switch-pick">
+        <span class="hint">Reconnect to</span>
+        <select id="switch-select"></select>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sticks</h2>
+    <div class="stack">
+      <div class="sticks">
+        <div class="stick" id="stick-left"><b>Left</b><span class="port">–</span><div class="pad"><i></i></div><div class="pressed"></div></div>
+        <div class="stick" id="stick-right"><b>Right</b><span class="port">–</span><div class="pad"><i></i></div><div class="pressed"></div></div>
+      </div>
+      <p class="hint" id="sticks-msg"></p>
+      <div class="row">
+        <button id="swap-btn">Swap sides</button>
+        <button id="identify-btn">Wiggle to set</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Button mapping</h2>
+    <div class="stack">
+      <select id="profile"></select>
+      <div class="row">
+        <button id="new-btn">New copy</button>
+        <button id="delete-btn" class="danger">Delete</button>
+      </div>
+      <p class="hint" id="profile-hint"></p>
+      <div class="tabs">
+        <button data-side="left" class="on">Left stick</button>
+        <button data-side="right">Right stick</button>
+      </div>
+      <div id="saved"></div>
+      <div class="map" id="map"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const UNMAPPED = "";
+const XBOX_LABELS = {
+  A: "A", B: "B", X: "X", Y: "Y", LEFT_SHOULDER: "LB", RIGHT_SHOULDER: "RB",
+  DPAD_UP: "D-pad up", DPAD_DOWN: "D-pad down", DPAD_LEFT: "D-pad left", DPAD_RIGHT: "D-pad right",
+  LEFT_THUMB: "Left stick click", RIGHT_THUMB: "Right stick click", BACK: "Back", START: "Start", GUIDE: "Guide",
+};
+const SWITCH_LABELS = { MINUS: "−", PLUS: "+", HOME: "Home" };
+
+let meta = null;
+let status = null;
+let editing = null;      // {name, read_only, config} shown in the editor
+let side = "left";
+let saveTimer = null;
+let failures = 0;
+
+async function api(path, body) {
+  const options = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
+  const response = await fetch(path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+
+async function act(path, body) {
+  try {
+    render(await api(path, body));
+    return true;
+  } catch (error) {
+    alert(error.message);
+    return false;
+  }
+}
+
+// Xbox name the configs use -> what to call it on this page. On a Switch the
+// same position has a different letter, so show the Switch's name first.
+function targetLabel(name) {
+  const xbox = XBOX_LABELS[name] || name;
+  const onSwitch = meta.switch_names[name];
+  if (!status.switch.available) return xbox;
+  if (!onSwitch || onSwitch.startsWith("DPAD")) return xbox;
+  return `${SWITCH_LABELS[onSwitch] || onSwitch}  (Xbox ${xbox})`;
+}
+
+// ---------------------------------------------------------------- status --
+function render(next) {
+  status = next;
+  renderSwitch();
+  renderSticks();
+  renderProfiles();
+  highlightPressed();
+}
+
+function renderSwitch() {
+  const sw = status.switch;
+  $("switch-card").style.display = sw.available ? "" : "none";
+  if (!sw.available) return;
+  const pairing = sw.wanted === "pair";
+  const views = {
+    off: ["", "Disconnected", "Connect goes back to a Switch that already knows this controller."],
+    starting: ["warn", "Starting Bluetooth…", ""],
+    initializing: ["warn", "Starting Bluetooth…", ""],
+    reconnecting: ["warn", "Reconnecting…", "The Switch has to be on, and not on the Change Grip/Order screen."],
+    connecting: ["warn", pairing ? "Pairing mode" : "Waiting for the Switch",
+      "On the Switch open Controllers → Change Grip/Order. It pairs by itself from there."],
+    connected: ["good", "Connected", sw.address ? `Switch ${sw.address}` : ""],
+  };
+  const [dot, text, hint] = views[sw.state] || ["warn", sw.state, ""];
+  $("link-dot").className = "dot " + dot;
+  $("link-text").textContent = text;
+  $("link-hint").textContent = hint;
+  $("link-error").textContent = sw.state === "connected" || !sw.error ? "" : sw.error;
+
+  const on = sw.wanted !== "off";
+  $("connect-btn").textContent = on ? "Disconnect" : "Connect";
+  $("connect-btn").className = on ? "" : "primary";
+  $("pair-btn").disabled = pairing && sw.state !== "connected";
+
+  const select = $("switch-select");
+  $("switch-pick").style.display = sw.known.length > 1 ? "" : "none";
+  const wanted = JSON.stringify([sw.known, sw.selected]);
+  if (select.dataset.key !== wanted) {
+    select.dataset.key = wanted;
+    select.replaceChildren(new Option("Any paired Switch", ""), ...sw.known.map((mac) => new Option(mac, mac)));
+    select.value = sw.known.includes(sw.selected) ? sw.selected : "";
+  }
+}
+
+function renderSticks() {
+  const sticks = status.sticks;
+  for (const name of ["left", "right"]) {
+    const card = $("stick-" + name);
+    const stick = sticks[name];
+    card.querySelector(".port").textContent = stick ? (stick.port ? `USB port ${stick.port}` : "connected") : "not connected";
+    const knob = card.querySelector("i");
+    knob.style.transform = stick ? `translate(${stick.x * 30}px, ${stick.y * 30}px)` : "";
+    knob.style.opacity = stick ? 1 : .25;
+    const pressed = stick ? stick.buttons.map((i) => (i === 0 ? "trigger" : "button " + i)) : [];
+    if (stick && (stick.hat[0] || stick.hat[1])) pressed.push("hat");
+    card.querySelector(".pressed").textContent = pressed.join(", ");
+  }
+  const finding = status.identify > 0;
+  $("sticks-msg").textContent = finding
+    ? `Move the stick you want as LEFT now… (${status.identify}s)`
+    : sticks.message;
+  $("swap-btn").disabled = !sticks.connected;
+  $("identify-btn").disabled = !sticks.connected;
+  $("identify-btn").textContent = finding ? "Cancel" : "Wiggle to set";
+}
+
+function renderProfiles() {
+  const select = $("profile");
+  const key = JSON.stringify(status.configs);
+  if (select.dataset.key !== key) {
+    select.dataset.key = key;
+    select.replaceChildren(...status.configs.map((name) => new Option(name, name)));
+  }
+  select.value = status.active_config;
+  if (!editing || editing.name !== status.active_config) loadEditor(status.active_config);
+}
+
+// ---------------------------------------------------------------- editor --
+async function loadEditor(name) {
+  editing = { name, read_only: true, config: null };  // placeholder so polling doesn't reload it again
+  try {
+    editing = await api("/api/config?name=" + encodeURIComponent(name));
+  } catch (error) {
+    editing = null;
+    return;
+  }
+  buildEditor();
+}
+
+function mappingRow(label, section, key) {
+  const row = document.createElement("label");
+  row.dataset.key = key;
+  row.dataset.section = section;
+  const select = document.createElement("select");
+  select.append(new Option("—", UNMAPPED), ...meta.targets.map((name) => new Option(targetLabel(name), name)));
+  select.value = editing.config[section][key] || UNMAPPED;
+  select.disabled = editing.read_only;
+  select.onchange = () => {
+    if (select.value === UNMAPPED) delete editing.config[section][key];
+    else editing.config[section][key] = select.value;
+    queueSave();
+  };
+  row.append(label, select);
+  return row;
+}
+
+function heading(text) {
+  const h = document.createElement("h3");
+  h.textContent = text;
+  return h;
+}
+
+function buildEditor() {
+  const config = editing.config;
+  $("delete-btn").disabled = editing.read_only;
+  $("profile-hint").textContent = editing.read_only
+    ? "Default can't be changed. Tap New copy to make your own version of it."
+    : "Changes are saved as you make them and apply right away.";
+  $("saved").textContent = "";
+
+  const map = $("map");
+  map.replaceChildren();
+  const triggerName = status.switch.available ? (side === "left" ? "ZL" : "ZR") : (side === "left" ? "LT" : "RT");
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent = `The trigger is always ${triggerName}. Press something on the stick to see which row it is.`;
+  map.append(note);
+
+  const invert = document.createElement("label");
+  invert.className = "check";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = config["invert_y_" + side];
+  box.disabled = editing.read_only;
+  box.onchange = () => { config["invert_y_" + side] = box.checked; queueSave(); };
+  invert.append(box, "Invert up / down");
+  invert.style.gridTemplateColumns = "auto 1fr";
+  map.append(invert);
+
+  map.append(heading("Hat"));
+  for (const [x, y, label] of meta.hat_directions) map.append(mappingRow(label, side + "_hat", `${x},${y}`));
+  map.append(heading("Buttons"));
+  for (const index of meta.buttons) map.append(mappingRow("Button " + index, side + "_buttons", String(index)));
+  highlightPressed();
+}
+
+function highlightPressed() {
+  const stick = status && status.sticks[side];
+  for (const row of $("map").querySelectorAll("label[data-key]")) {
+    let hot = false;
+    if (stick) {
+      hot = row.dataset.section.endsWith("_hat")
+        ? row.dataset.key === stick.hat.join(",")
+        : stick.buttons.includes(Number(row.dataset.key));
+    }
+    row.classList.toggle("hot", hot);
+  }
+}
+
+function queueSave() {
+  clearTimeout(saveTimer);
+  $("saved").className = "";
+  $("saved").textContent = "Saving…";
+  saveTimer = setTimeout(async () => {
+    try {
+      await api("/api/config", { name: editing.name, config: editing.config });
+      $("saved").textContent = "Saved ✓";
+    } catch (error) {
+      $("saved").className = "bad";
+      $("saved").textContent = "Not saved: " + error.message;
+    }
+  }, 300);
+}
+
+// --------------------------------------------------------------- actions --
+$("connect-btn").onclick = () =>
+  act("/api/switch", { action: status.switch.wanted === "off" ? "connect" : "disconnect" });
+$("pair-btn").onclick = () => {
+  if (status.switch.state === "connected" && !confirm("This drops the current connection to pair again. Continue?")) return;
+  act("/api/switch", { action: "pair" });
+};
+$("switch-select").onchange = (event) => act("/api/switch", { action: "select", address: event.target.value || null });
+$("swap-btn").onclick = () => act("/api/sticks", { action: "swap" });
+$("identify-btn").onclick = () => act("/api/sticks", { action: status.identify > 0 ? "cancel" : "identify" });
+$("profile").onchange = (event) => act("/api/active", { name: event.target.value });
+$("new-btn").onclick = async () => {
+  const name = prompt("Name for the new mapping:", editing.read_only ? "My mapping" : editing.name + " 2");
+  if (!name) return;
+  await act("/api/config", { name, config: editing.config, create: true, activate: true });
+};
+$("delete-btn").onclick = () => {
+  if (confirm(`Delete the mapping "${editing.name}"?`)) act("/api/config/delete", { name: editing.name });
+};
+for (const tab of document.querySelectorAll(".tabs button")) {
+  tab.onclick = () => {
+    side = tab.dataset.side;
+    for (const other of document.querySelectorAll(".tabs button")) other.classList.toggle("on", other === tab);
+    if (editing && editing.config) buildEditor();
+  };
+}
+
+async function poll() {
+  try {
+    render(await api("/api/status"));
+    failures = 0;
+  } catch (error) {
+    failures += 1;
+  }
+  $("offline").style.display = failures >= 3 ? "block" : "none";
+  setTimeout(poll, document.hidden ? 2000 : 150);
+}
+
+(async () => {
+  for (;;) {
+    try { meta = await api("/api/meta"); break; } catch (error) { await new Promise((done) => setTimeout(done, 1000)); }
+  }
+  poll();
+})();
+</script>
+</body>
+</html>

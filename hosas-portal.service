@@ -1,0 +1,21 @@
+# Starts the phone portal (web_portal.py) at boot.
+# Adjust the three /home/controller paths if the repo or user differs, then:
+#   sudo cp hosas-portal.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now hosas-portal
+
+[Unit]
+Description=HOSAS Translator phone portal (Switch bridge)
+After=bluetooth.service network-online.target
+Wants=bluetooth.service network-online.target
+
+[Service]
+# Root is required by NXBT; HOME keeps the settings in the normal user's ~/.config.
+Environment=HOME=/home/controller
+WorkingDirectory=/home/controller/Desktop/Codes/duo_t16000m_to_virtual_controller_translator
+ExecStartPre=/usr/sbin/rfkill unblock bluetooth
+ExecStart=/home/controller/Desktop/Codes/duo_t16000m_to_virtual_controller_translator/.venv/bin/python -u web_portal.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
