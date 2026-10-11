@@ -127,6 +127,7 @@ class Portal:
         self.link_error = None
         self.link_address = None
         self.known_switches = []
+        self._known_at = None
         self._index = None
         self._restart_link = False
         self._retry_at = 0.0
@@ -229,6 +230,11 @@ class Portal:
         with self._lock:
             wanted = self.wanted
             restart, self._restart_link = self._restart_link, False
+        if self._known_at is None or now - self._known_at > 10:
+            # Kept fresh even while off, so the page can offer the choice
+            # of Switch before connecting.
+            self.known_switches = list(self.nx.get_switch_addresses())
+            self._known_at = now
         if wanted == "off":
             self._forget_controller()
             self.link_state = "off"
@@ -244,7 +250,6 @@ class Portal:
         if self._index is None:
             if now < self._retry_at:
                 return
-            self.known_switches = list(self.nx.get_switch_addresses())
             addresses = None
             if wanted == "connect":
                 selected = config_store.get_setting("switch_address")

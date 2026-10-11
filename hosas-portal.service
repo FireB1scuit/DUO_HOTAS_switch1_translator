@@ -5,7 +5,9 @@
 
 [Unit]
 Description=HOSAS Translator phone portal (Switch bridge)
-After=bluetooth.service network-online.target
+# Not ordered after bluetooth.service: NXBT restarts Bluetooth itself on start
+# and stop, and that restart would wait forever on this unit's own stop.
+After=network-online.target
 Wants=bluetooth.service network-online.target
 
 [Service]
@@ -16,6 +18,7 @@ ExecStartPre=/usr/sbin/rfkill unblock bluetooth
 ExecStart=/home/controller/Desktop/Codes/duo_t16000m_to_virtual_controller_translator/.venv/bin/python -u web_portal.py
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=20
 
 [Install]
 WantedBy=multi-user.target
