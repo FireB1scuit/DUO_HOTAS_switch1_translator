@@ -1,5 +1,6 @@
 """
-Windows GUI for the T.16000M -> virtual Xbox 360 controller translator.
+GUI for the T.16000M -> virtual Xbox 360 controller translator (Windows,
+and Linux via uinput - see README.md).
 
 Left half is a tabbed panel:
   - Control: connect the sticks, pick which config is active, start/stop
@@ -16,6 +17,7 @@ Built on config_store.py / stick_engine.py, which are also used by the
 plain CLI in main.py.
 """
 
+import sys
 import threading
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
@@ -27,6 +29,12 @@ from controller_view import ControllerSchematic
 from stick_engine import StickManager, compute_virtual_state
 
 APP_TITLE = "HOSAS Translator"
+WINDOW_WIDTH = 1300
+
+if sys.platform == "win32":
+    VIRTUAL_PAD_HINT = "Is ViGEmBus installed?"
+else:
+    VIRTUAL_PAD_HINT = "Does your user have write access to /dev/uinput? See the Linux section of README.md."
 
 
 class ScrollableFrame(ttk.Frame):
@@ -49,11 +57,15 @@ class ScrollableFrame(ttk.Frame):
         def on_mousewheel(event):
             canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
+        # X11 has no <MouseWheel>; the wheel arrives as buttons 4 (up) / 5 (down).
         def bind_wheel(_event):
             canvas.bind_all("<MouseWheel>", on_mousewheel)
+            canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+            canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
         def unbind_wheel(_event):
-            canvas.unbind_all("<MouseWheel>")
+            for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                canvas.unbind_all(sequence)
 
         canvas.bind("<Enter>", bind_wheel)
         canvas.bind("<Leave>", unbind_wheel)
@@ -63,7 +75,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("1300x750")
+        self.geometry(f"{WINDOW_WIDTH}x750")
         self.minsize(1150, 650)
 
         pygame.init()
@@ -77,6 +89,11 @@ class App(tk.Tk):
         self.controller_status = tk.StringVar(value="Virtual controller: stopped")
 
         self._build_ui()
+        # Font metrics differ per platform (Linux fonts run taller than
+        # Segoe UI), so grow the window to whatever the debug panel needs
+        # rather than clipping its bottom rows.
+        self.update_idletasks()
+        self.geometry(f"{WINDOW_WIDTH}x{max(750, self.winfo_reqheight())}")
         self._load_active_config(persist=False)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(300, lambda: self._connect(recalibrate=False))
@@ -103,8 +120,15 @@ class App(tk.Tk):
         self._build_configs_tab()
 
         # Give the debug side enough width for the schematic up front instead
-        # of the 50/50 split the PanedWindow would otherwise start with.
-        self.after_idle(lambda: panes.sashpos(0, 480))
+        # of the 50/50 split the PanedWindow would otherwise start with. The
+        # sash can only be placed once the pane has its real width, which on
+        # X11 is later than the first idle callback - so wait for the resize.
+        def place_sash(event):
+            if event.width >= WINDOW_WIDTH - 50:
+                panes.unbind("<Configure>")
+                panes.sashpos(0, 480)
+
+        panes.bind("<Configure>", place_sash)
 
     # ---------------------------------------------------------- control --
     def _build_control_tab(self):
@@ -112,10 +136,12 @@ class App(tk.Tk):
 
         conn = ttk.LabelFrame(tab, text="Sticks", padding=12)
         conn.pack(fill="x", pady=(0, 12))
-        ttk.Label(conn, textvariable=self.connection_status).pack(side="left")
+        # Button first so it keeps its full width; the status text wraps in
+        # whatever is left instead of pushing the button out of the frame.
         ttk.Button(conn, text="Connect / Refresh", command=lambda: self._connect(recalibrate=False)).pack(
-            side="right"
+            side="right", padx=(8, 0)
         )
+        ttk.Label(conn, textvariable=self.connection_status, wraplength=270, justify="left").pack(side="left")
 
         cfg = ttk.LabelFrame(tab, text="Active mapping", padding=12)
         cfg.pack(fill="x", pady=(0, 12))
@@ -140,7 +166,7 @@ class App(tk.Tk):
                 "wiggling the left stick once. That result is cached, so this normally only "
                 "runs the first time or after you change USB ports."
             ),
-            wraplength=460,
+            wraplength=400,
             justify="left",
         ).pack(anchor="w", pady=(0, 12))
 
@@ -164,7 +190,7 @@ class App(tk.Tk):
             self.manager.start_gamepad()
         except Exception as exc:
             messagebox.showerror(
-                APP_TITLE, f"Couldn't create the virtual controller:\n{exc}\n\nIs ViGEmBus installed?"
+                APP_TITLE, f"Couldn't create the virtual controller:\n{exc}\n\n{VIRTUAL_PAD_HINT}"
             )
             return
         self.controller_status.set("Virtual controller: active")

@@ -8,6 +8,7 @@
 - [x] map joystick buttons
 - [x] map joystick hat to arrows and XABY
 - [x] Windows GUI app with debug view, recalibration, and custom mapping profiles
+- [x] runs on Linux too (virtual controller via uinput)
 - [ ] map throttle button (slider left = mouse sensitivity, slider right = volume)
 - [ ] map extra button on base
 - [ ] map horizontal X rotation for X joystick acceleration
@@ -22,6 +23,29 @@
    pip install -r requirements.txt
    python gui.py
    ```
+
+### Linux (e.g. Raspberry Pi OS)
+
+The same code runs on Linux; `vgamepad` creates the virtual Xbox 360 controller through `uinput` instead of ViGEmBus, so there is no driver to install.
+
+1. Install the dependencies in a virtual environment (Debian-based systems refuse a system-wide `pip install`):
+   ```
+   sudo apt install python3-tk libevdev2
+   python3 -m venv --system-site-packages .venv
+   .venv/bin/pip install -r requirements.txt
+   ```
+2. Let your user create virtual input devices. `/dev/uinput` is root-only by default; this rule opens it to the `input` group (which your user also needs to be in to read the sticks — check with `id`):
+   ```
+   echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules
+   sudo udevadm control --reload-rules && sudo udevadm trigger /dev/uinput
+   ```
+   Without it the sticks and the Debug panel still work, but **Start** fails with `Permission denied`.
+3. Run it:
+   ```
+   .venv/bin/python gui.py
+   ```
+
+Settings are stored under `~/.config/HOSAS_Translator/` instead of `%APPDATA%`. The `.exe` build and the HidHide section below are Windows-only.
 
 ### Optional: hiding the physical sticks from games (HidHide)
 

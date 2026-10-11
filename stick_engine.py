@@ -9,10 +9,18 @@ toggle are just two consumers of that one loop, not two separate pollers.
 """
 
 import ctypes
+import gc
 import json
+import os
 import sys
 import threading
 import time
+
+# SDL otherwise installs its own SIGINT/SIGTERM handlers on Linux and turns
+# them into queued quit events nobody here reads, so Ctrl+C and `kill` would
+# be silently ignored. Read at pygame.init() time, so setting it here (before
+# any caller gets that far) is early enough.
+os.environ.setdefault("SDL_NO_SIGNAL_HANDLERS", "1")
 
 import pygame
 
@@ -186,6 +194,10 @@ class GamepadController:
 
         self._vg = vg
         self.gamepad = vg.VX360Gamepad()
+        # compute_virtual_state() speaks XInput: +Y is stick up. vgamepad's
+        # Linux backend writes the value straight to evdev, where +Y is down,
+        # so without this flip both sticks come out upside down there.
+        self._y_sign = 1.0 if sys.platform == "win32" else -1.0
         self.set_config(config)
 
     def set_config(self, config):
@@ -203,8 +215,8 @@ class GamepadController:
     def update(self, left_state, right_state):
         vs = compute_virtual_state(left_state, right_state, self.config)
 
-        self.gamepad.left_joystick_float(x_value_float=vs["lx"], y_value_float=vs["ly"])
-        self.gamepad.right_joystick_float(x_value_float=vs["rx"], y_value_float=vs["ry"])
+        self.gamepad.left_joystick_float(x_value_float=vs["lx"], y_value_float=vs["ly"] * self._y_sign)
+        self.gamepad.right_joystick_float(x_value_float=vs["rx"], y_value_float=vs["ry"] * self._y_sign)
         self.gamepad.left_trigger_float(value_float=vs["lt"])
         self.gamepad.right_trigger_float(value_float=vs["rt"])
 
@@ -222,6 +234,11 @@ class GamepadController:
     def close(self):
         self.gamepad.reset()
         self.gamepad.update()
+        # On Linux the uinput device only goes away when the pad object is
+        # freed, and vgamepad's object sits in a reference cycle - without a
+        # collection the "stopped" controller stays visible to games.
+        self.gamepad = None
+        gc.collect()
 
 
 class StickManager:
