@@ -47,7 +47,7 @@ The same code runs on Linux; `vgamepad` creates the virtual Xbox 360 controller 
 
 #### Nintendo Switch over Bluetooth (experimental)
 
-[switch_bridge.py](switch_bridge.py) sends the sticks to a Nintendo Switch instead of a local virtual pad: the machine poses as a Bluetooth Pro Controller via [NXBT](https://github.com/Brikwerk/nxbt), using the same mapping configs (Xbox names map by label: A→A, LB/RB→L/R, LT/RT→ZL/ZR, Back/Start→−/+, Guide→Home).
+[switch_bridge.py](switch_bridge.py) sends the sticks to a Nintendo Switch instead of a local virtual pad: the machine poses as a Bluetooth Pro Controller via [NXBT](https://github.com/Brikwerk/nxbt), using the same mapping configs (face buttons map by position, so Xbox A/B/X/Y press the Switch's B/A/Y/X; LB/RB→L/R, LT/RT→ZL/ZR, Back/Start→−/+, Guide→Home).
 
 ```
 .venv/bin/pip install --no-deps nxbt      # its pinned dbus-python doesn't build on new Pythons; the system python3-dbus is used

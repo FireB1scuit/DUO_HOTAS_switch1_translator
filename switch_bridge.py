@@ -26,14 +26,15 @@ import pygame
 import config_store
 from stick_engine import StickManager, Ticker, compute_virtual_state
 
-# Config target name (Xbox naming) -> NXBT input packet key. Mapped by
-# label, not by position: "A" in a config presses the Switch's A (right
-# face button), even though the Xbox A sits at the bottom.
+# Config target name (Xbox naming) -> NXBT input packet key. Face buttons
+# map by position, not by label: Nintendo swaps A/B and X/Y relative to
+# Xbox, so the Xbox bottom button (A) has to press the Switch's bottom
+# button (B), and so on.
 XBOX_TO_SWITCH = {
-    "A": "A",
-    "B": "B",
-    "X": "X",
-    "Y": "Y",
+    "A": "B",
+    "B": "A",
+    "X": "Y",
+    "Y": "X",
     "LEFT_SHOULDER": "L",
     "RIGHT_SHOULDER": "R",
     "DPAD_UP": "DPAD_UP",
