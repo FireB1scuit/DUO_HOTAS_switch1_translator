@@ -180,7 +180,7 @@ If a rebuild fails with a `PermissionError` on `dist\HOSAS Translator.exe`, it's
 The mode follows how many T.16000Ms are plugged in — there is nothing to set:
 
 - **Two sticks (duo mode)** — one per hand: left stick → left stick, right stick → right stick, as in the table below.
-- **One stick (single-stick mode)** — that stick is the whole controller. The stick itself is the controller's left stick (with the left stick's up/down inversion setting), the trigger is RT, and the buttons and hat have their own mapping (the **Single stick** column below), which starts out as the left stick's base buttons and the right stick's hat, with stick-top buttons of its own so one hand reaches both triggers. There is no right stick or LB in this mode unless you map them in a custom mapping.
+- **One stick (single-stick mode)** — that stick is the whole controller. The stick itself is the controller's left stick (with the left stick's up/down inversion setting), the trigger is RT, and the buttons and hat have their own mapping (the **Single stick** column below), which starts out as the right stick's with the three stick-top buttons changed so one hand reaches both triggers. There is no right stick or LB in this mode unless you map them in a custom mapping.
 
 The phone portal switches by itself when a stick is unplugged or plugged back in. The GUI and the command-line tools decide when they connect, so use **Connect / Refresh** (or restart them) after changing the number of sticks. Which USB port counts as left is only asked for, and only saved, with two sticks.
 
