@@ -45,6 +45,18 @@ The same code runs on Linux; `vgamepad` creates the virtual Xbox 360 controller 
    .venv/bin/python gui.py
    ```
 
+#### Nintendo Switch over Bluetooth (experimental)
+
+[switch_bridge.py](switch_bridge.py) sends the sticks to a Nintendo Switch instead of a local virtual pad: the machine poses as a Bluetooth Pro Controller via [NXBT](https://github.com/Brikwerk/nxbt), using the same mapping configs (Xbox names map by label: A→A, LB/RB→L/R, LT/RT→ZL/ZR, Back/Start→−/+, Guide→Home).
+
+```
+.venv/bin/pip install --no-deps nxbt      # its pinned dbus-python doesn't build on new Pythons; the system python3-dbus is used
+sudo rfkill unblock bluetooth
+sudo env HOME=$HOME .venv/bin/python switch_bridge.py
+```
+
+The first time, open **Controllers → Change Grip/Order** on the Switch; later runs reconnect to the paired Switch on their own. It needs root, and while it runs NXBT restarts the Bluetooth service with its plugins disabled, so other Bluetooth devices on the machine stop working until the service is restarted normally or the machine reboots.
+
 Settings are stored under `~/.config/HOSAS_Translator/` instead of `%APPDATA%`. The `.exe` build and the HidHide section below are Windows-only.
 
 ### Optional: hiding the physical sticks from games (HidHide)
