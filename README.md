@@ -73,6 +73,21 @@ Everything is remembered (same files as the GUI), including whether it was conne
 
 To start it at boot, see the comments in [hosas-portal.service](hosas-portal.service). It replaces `switch_bridge.py` — only one of the two can use the Bluetooth adapter at a time.
 
+##### Away from home: fallback Wi-Fi hotspot
+
+The portal needs the phone and this machine on the same network. With no Wi-Fi around, the machine can provide one itself:
+
+```
+sudo ./setup_hotspot.sh "NetworkName" "password"      # password: 8+ characters
+```
+
+That adds a low-priority hotspot to NetworkManager. Whenever a Wi-Fi network the machine already knows is in range it joins that as usual; when none is (checked as it boots), it starts the hotspot instead. Join it from the phone and open **http://10.42.0.1:8080** — the address is always the same on the hotspot.
+
+- The hotspot has no internet, so the phone may warn about it; tell it to stay connected.
+- It only falls back when starting up or after losing Wi-Fi, and it doesn't hop back to the home network by itself — reboot (or `sudo nmcli connection down hosas-hotspot`) once you're home.
+- It runs on 5 GHz to stay clear of the Bluetooth link to the Switch, which shares the same radio. If stick input feels laggy with the phone connected, that sharing is the first thing to suspect.
+- `sudo nmcli connection up hosas-hotspot` forces it on for a test; `sudo nmcli connection delete hosas-hotspot` removes it.
+
 Settings are stored under `~/.config/HOSAS_Translator/` instead of `%APPDATA%`. The `.exe` build and the HidHide section below are Windows-only.
 
 ### Optional: hiding the physical sticks from games (HidHide)
@@ -133,6 +148,7 @@ python main.py                 # run the translator (Ctrl+C to stop)
 | [main.py](main.py) | The headless CLI (`--test` / `--debug` / `--recalibrate` / `--config`), built on the same `config_store.py` / `stick_engine.py`. |
 | [switch_bridge.py](switch_bridge.py) | Linux: sends the sticks to a Nintendo Switch over Bluetooth (NXBT). |
 | [web_portal.py](web_portal.py), [portal.html](portal.html) | Linux: the Switch bridge with a phone-friendly web page for connecting, pairing, left/right USB ports, and editing mappings. |
+| [hosas-portal.service](hosas-portal.service), [setup_hotspot.sh](setup_hotspot.sh) | Linux: start the portal at boot, and the fallback Wi-Fi hotspot for using it with no network around. |
 | [build.ps1](build.ps1) | Packages `gui.py` into `dist\HOSAS Translator.exe` via PyInstaller. |
 
 ## Building the .exe
