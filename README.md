@@ -1,5 +1,9 @@
 # duo_t16000m_to_virtual_controller_translator
 
+![Hardware and wiring diagram](hardware_diagram.svg)
+
+The sticks are the only things with a cable: each T.16000M plugs into the host over USB. The host then either shows up as an Xbox 360 controller to games running on it, or (Linux) connects to a Nintendo Switch over Bluetooth as a Pro Controller. The phone is optional and only talks to the [phone portal](#phone-portal).
+
 - [x] read out joystick values
 - [x] virtual controller
 - [x] left joystick xy to wasd

@@ -1,0 +1,115 @@
+<svg viewBox="0 0 1160 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<title id="title">HOSAS Translator hardware and wiring diagram</title>
+<desc id="desc">Two Thrustmaster T.16000M joysticks plug into a host computer over USB. The host runs the translator and outputs either a virtual Xbox 360 controller to games on the same machine, or a Bluetooth Pro Controller to a Nintendo Switch. A phone on the same Wi-Fi network can open the web portal on port 8080.</desc>
+<style>
+  svg {
+    --bg: #ffffff;
+    --box-fill: #ffffff;
+    --line: #d0d7de;
+    --text: #1f2328;
+    --sub: #57606a;
+    --accent: #0969da;
+  }
+  @media (prefers-color-scheme: dark) {
+    svg {
+      --bg: #0d1117;
+      --box-fill: #161b22;
+      --line: #30363d;
+      --text: #e6edf3;
+      --sub: #8b949e;
+      --accent: #58a6ff;
+    }
+  }
+  text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .bg { fill: var(--bg); }
+  .box { fill: var(--box-fill); stroke: var(--line); stroke-width: 1.5; }
+  .host { fill: var(--box-fill); stroke: var(--accent); stroke-width: 2; }
+  .title { fill: var(--text); font-size: 22px; font-weight: 700; }
+  .colhead { fill: var(--accent); font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+  .section { fill: var(--sub); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .boxtop { fill: var(--text); font-size: 15px; font-weight: 700; }
+  .boxsub { fill: var(--sub); font-size: 13px; }
+  .boxfn { fill: var(--accent); font-size: 13px; font-weight: 700; }
+  .note { fill: var(--sub); font-size: 12px; }
+  .cable { stroke: var(--text); stroke-width: 2.5; fill: none; }
+  .link { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 7 5; fill: none; }
+  .cablehead { fill: var(--text); }
+  .linkhead { fill: var(--accent); }
+</style>
+<defs>
+  <marker id="cablearrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path class="cablehead" d="M0,0 L10,5 L0,10 z"/>
+  </marker>
+  <marker id="linkarrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path class="linkhead" d="M0,0 L10,5 L0,10 z"/>
+  </marker>
+</defs>
+<rect class="bg" x="0" y="0" width="1160" height="560"/>
+<text class="title" x="580" y="35" text-anchor="middle">Hardware &amp; Wiring</text>
+
+<text class="section" x="40" y="75">Inputs</text>
+<text class="section" x="440" y="75">Host</text>
+<text class="section" x="870" y="75">Outputs (pick one)</text>
+
+<!-- Inputs -->
+<rect class="box" x="40" y="90" width="250" height="80" rx="8"/>
+<text class="boxtop" x="165" y="123" text-anchor="middle">Thrustmaster T.16000M</text>
+<text class="boxsub" x="165" y="145" text-anchor="middle">left hand</text>
+
+<rect class="box" x="40" y="210" width="250" height="80" rx="8"/>
+<text class="boxtop" x="165" y="243" text-anchor="middle">Thrustmaster T.16000M</text>
+<text class="boxsub" x="165" y="265" text-anchor="middle">right hand (optional)</text>
+
+<!-- Host -->
+<rect class="host" x="440" y="90" width="280" height="200" rx="8"/>
+<text class="colhead" x="580" y="125" text-anchor="middle">HOST COMPUTER</text>
+<text class="boxsub" x="580" y="148" text-anchor="middle">Raspberry Pi / Linux, or Windows PC</text>
+<rect class="box" x="465" y="170" width="230" height="95" rx="8"/>
+<text class="boxtop" x="580" y="198" text-anchor="middle">HOSAS Translator</text>
+<text class="boxsub" x="580" y="220" text-anchor="middle">reads both sticks, applies the</text>
+<text class="boxsub" x="580" y="238" text-anchor="middle">active button mapping</text>
+
+<!-- Outputs -->
+<rect class="box" x="870" y="90" width="250" height="80" rx="8"/>
+<text class="boxtop" x="995" y="123" text-anchor="middle">Games on the host</text>
+<text class="boxsub" x="995" y="145" text-anchor="middle">see an Xbox 360 controller</text>
+
+<rect class="box" x="870" y="210" width="250" height="80" rx="8"/>
+<text class="boxtop" x="995" y="243" text-anchor="middle">Nintendo Switch</text>
+<text class="boxsub" x="995" y="265" text-anchor="middle">sees a Pro Controller</text>
+
+<!-- Phone -->
+<rect class="box" x="440" y="400" width="280" height="80" rx="8"/>
+<text class="boxtop" x="580" y="433" text-anchor="middle">Phone (optional)</text>
+<text class="boxsub" x="580" y="455" text-anchor="middle">browser → http://&lt;host&gt;:8080</text>
+
+<!-- USB cables -->
+<line class="cable" x1="290" y1="130" x2="438" y2="130" marker-end="url(#cablearrow)"/>
+<text class="boxfn" x="365" y="120" text-anchor="middle">USB</text>
+<line class="cable" x1="290" y1="250" x2="438" y2="250" marker-end="url(#cablearrow)"/>
+<text class="boxfn" x="365" y="240" text-anchor="middle">USB</text>
+
+<!-- Virtual controller -->
+<line class="link" x1="720" y1="130" x2="868" y2="130" marker-end="url(#linkarrow)"/>
+<text class="boxfn" x="795" y="120" text-anchor="middle">Virtual controller</text>
+<text class="note" x="795" y="148" text-anchor="middle">ViGEmBus / uinput</text>
+
+<!-- Bluetooth -->
+<line class="link" x1="720" y1="250" x2="868" y2="250" marker-end="url(#linkarrow)"/>
+<text class="boxfn" x="795" y="240" text-anchor="middle">Bluetooth</text>
+<text class="note" x="795" y="268" text-anchor="middle">Linux only (NXBT)</text>
+
+<!-- Wi-Fi -->
+<line class="link" x1="580" y1="400" x2="580" y2="292" marker-end="url(#linkarrow)"/>
+<text class="boxfn" x="596" y="340">Wi-Fi</text>
+<text class="note" x="596" y="358">home network, or the fallback hotspot (http://10.42.0.1:8080)</text>
+<text class="note" x="564" y="340" text-anchor="end">connect / pair the Switch,</text>
+<text class="note" x="564" y="358" text-anchor="end">swap sides, edit mappings</text>
+
+<!-- Legend -->
+<line class="cable" x1="40" y1="520" x2="90" y2="520"/>
+<text class="note" x="100" y="524">USB cable</text>
+<line class="link" x1="200" y1="520" x2="250" y2="520"/>
+<text class="note" x="260" y="524">no cable (software or wireless)</text>
+<text class="note" x="1120" y="524" text-anchor="end">Both sticks report the same USB ID — left/right is remembered per USB port, so keep each stick in its port.</text>
+</svg>
