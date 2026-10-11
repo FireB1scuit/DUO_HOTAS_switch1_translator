@@ -18,6 +18,7 @@ runs try to reconnect to the already-paired Switch first.
 import multiprocessing
 import os
 import sys
+import time
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")  # no display when run under sudo
 
@@ -151,29 +152,46 @@ def main():
     manager.assign(sticks, recalibrate="--recalibrate" in argv, status_cb=lambda m: print(m, flush=True))
     manager.start_polling()
 
-    known = nx.get_switch_addresses()
-    index = nx.create_controller(nxbt.PRO_CONTROLLER, reconnect_address=known or None)
-    print(
-        "Waiting for the Switch" + (f" (known: {', '.join(known)})" if known else "")
-        + " - if it doesn't connect, open Controllers -> Change Grip/Order.",
-        flush=True,
-    )
+    def connect():
+        known = nx.get_switch_addresses()
+        print(
+            "Waiting for the Switch" + (f" (known: {', '.join(known)})" if known else "")
+            + " - if it doesn't connect, open Controllers -> Change Grip/Order.",
+            flush=True,
+        )
+        return nx.create_controller(nxbt.PRO_CONTROLLER, reconnect_address=known or None)
 
+    index = connect()
     ticker = Ticker(manager.config["poll_hz"])
-    last_state = None
+    state = last_state = last_packet = None
+    next_state_check = 0.0
     try:
         while True:
-            state = nx.state[index]["state"]
-            if state != last_state:
-                print(f"Switch link: {state}", flush=True)
-                last_state = state
-            if state == "crashed":
-                sys.exit(f"NXBT controller crashed:\n{nx.state[index].get('errors')}")
+            # nx.state and set_controller_input() are round trips to NXBT's
+            # manager process, which its controller loop also depends on -
+            # so check the link only a few times a second and send input
+            # only when it changed (NXBT keeps replaying the last packet).
+            now = time.monotonic()
+            if now >= next_state_check:
+                next_state_check = now + 0.25
+                state = nx.state[index]["state"]
+                if state != last_state:
+                    print(f"{time.strftime('%H:%M:%S')} Switch link: {state}", flush=True)
+                    last_state, last_packet = state, None
+                if state == "crashed":
+                    print(str(nx.state[index].get("errors")).strip().splitlines()[-1], flush=True)
+                    nx.remove_controller(index)
+                    time.sleep(2)
+                    index = connect()
+                    continue
             if state == "connected":
                 snap = manager.get_snapshot()
                 if snap["left"] is not None and snap["right"] is not None:
                     vs = compute_virtual_state(snap["left"], snap["right"], manager.config)
-                    nx.set_controller_input(index, build_packet(nx, vs))
+                    packet = build_packet(nx, vs)
+                    if packet != last_packet:
+                        nx.set_controller_input(index, packet)
+                        last_packet = packet
             ticker.wait()
     except KeyboardInterrupt:
         print("\nStopping.")
