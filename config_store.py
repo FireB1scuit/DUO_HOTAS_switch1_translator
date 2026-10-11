@@ -108,6 +108,14 @@ BUTTON_NAME_MAP = {
 
 UNMAPPED = "(unmapped)"
 
+# How the sticks make up the controller, decided by how many are plugged in:
+#   - "duo": two sticks, one per hand - left stick/right stick of the pad.
+#   - "single": one stick is the whole pad. Its axes are the pad's left
+#     stick, and its trigger, buttons and hat use the right stick's mapping
+#     (so with Default the hat is the face buttons).
+MODE_DUO = "duo"
+MODE_SINGLE = "single"
+
 # Every non-center direction a hat can report, in a stable display order.
 HAT_DIRECTIONS = [
     (0, 1, "Up"),

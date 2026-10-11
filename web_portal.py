@@ -4,9 +4,11 @@ Linux-only: a small web page for running the Switch bridge from a phone.
 Serves portal.html on the local network and does what switch_bridge.py
 does, but controllable while it runs: connect/disconnect the emulated Pro
 Controller, put it in pairing mode, choose which USB port is the left
-stick, and edit the button mappings. Everything is saved under
-~/.config/HOSAS_Translator/ (the same files the GUI uses), so it comes
-back the way it was left - including reconnecting to the Switch on start.
+stick, and edit the button mappings. With one stick plugged in it switches
+to single-stick mode by itself, and back when the second one returns.
+Everything is saved under ~/.config/HOSAS_Translator/ (the same files the
+GUI uses), so it comes back the way it was left - including reconnecting to
+the Switch on start.
 
 Must run as root, like switch_bridge.py (NXBT reconfigures BlueZ):
 
@@ -37,7 +39,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")  # no display when run under s
 import pygame
 
 import config_store
-from stick_engine import StickManager, compute_virtual_state, list_stick_ports, throttle_sensitivity
+from stick_engine import StickManager, list_stick_ports, throttle_sensitivity
 from switch_bridge import XBOX_TO_SWITCH, build_packet, start_pairing_agent
 
 PAGE_PATH = Path(__file__).with_name("portal.html")
@@ -175,7 +177,7 @@ class Portal:
 
     def _check_sticks(self):
         ports = list_stick_ports()
-        if self.manager.is_connected():
+        if self.manager.left is not None:
             if ports == self._stick_ports and not self._rescan:
                 return
             # Unplugged or moved: the pygame handles are dead either way.
@@ -183,13 +185,16 @@ class Portal:
             self.manager.left = self.manager.right = None
             self._identify_until = None
         self._rescan = False
-        if len(ports) != 2:
-            self.sticks_message = f"Found {len(ports)} of 2 T.16000M sticks - plug both in."
+        if len(ports) not in (1, 2):
+            self.sticks_message = (
+                f"Found {len(ports)} T.16000M sticks - plug in one or two." if ports
+                else "No T.16000M stick found - plug in one or two."
+            )
             return
         try:
             sticks, _ = self.manager.find_sticks()
-            if len(sticks) != 2:
-                self.sticks_message = f"Could not open both sticks (got {len(sticks)})."
+            if len(sticks) != len(ports):
+                self.sticks_message = f"Could not open the sticks (got {len(sticks)} of {len(ports)})."
                 return
             # Never block on the wiggle test here: with nothing saved yet,
             # take the ports in order and let the page swap them.
@@ -200,7 +205,10 @@ class Portal:
             self.sticks_message = f"Could not open the sticks: {exc}"
             return
         self._stick_ports = ports
-        self.sticks_message = "Both sticks connected."
+        if len(ports) == 2:
+            self.sticks_message = "Both sticks connected."
+        else:
+            self.sticks_message = "One stick connected - single-stick mode."
 
     def _check_identify(self, now):
         if self._identify_until is None:
@@ -293,9 +301,7 @@ class Portal:
         # No input while a stick is being wiggled for identification, and
         # none from the stale last read after a stick is unplugged.
         if self.manager.is_connected() and self._identify_until is None:
-            snap = self.manager.get_snapshot()
-            if snap["left"] is not None and snap["right"] is not None:
-                vs = compute_virtual_state(snap["left"], snap["right"], self.manager.config)
+            vs = self.manager.virtual_state() or NEUTRAL_STATE
         packet = build_packet(self.nx, vs)
         if packet != self._last_packet:
             self.nx.set_controller_input(self._index, packet)
@@ -304,7 +310,12 @@ class Portal:
     # -- called from HTTP threads ---------------------------------------
     def status(self):
         connected = self.manager.is_connected()
-        sticks = {"connected": connected, "message": self.sticks_message}
+        sticks = {
+            "connected": connected,
+            "message": self.sticks_message,
+            # With nothing plugged in there is no mode yet; the page shows the two-stick layout.
+            "mode": self.manager.mode if connected else config_store.MODE_DUO,
+        }
         if connected:
             snap = self.manager.get_snapshot()
             config = self.manager.config
@@ -398,6 +409,8 @@ class Portal:
             return
         if not self.manager.is_connected():
             raise ValueError("The sticks are not connected.")
+        if action in ("swap", "identify") and self.manager.right is None:
+            raise ValueError("Only one stick is plugged in.")
         if action == "swap":
             self.manager.swap_sticks()
             self._identify_until = None

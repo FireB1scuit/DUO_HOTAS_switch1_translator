@@ -1,6 +1,7 @@
 """
 GUI for the T.16000M -> virtual Xbox 360 controller translator (Windows,
-and Linux via uinput - see README.md).
+and Linux via uinput - see README.md). Two sticks make one controller; with
+only one plugged in it runs single-stick mode (see config_store.MODE_SINGLE).
 
 Left half is a tabbed panel:
   - Control: connect the sticks, pick which config is active, start/stop
@@ -26,7 +27,7 @@ import pygame
 
 import config_store
 from controller_view import ControllerSchematic
-from stick_engine import StickManager, compute_virtual_state
+from stick_engine import StickManager
 
 APP_TITLE = "HOSAS Translator"
 WINDOW_WIDTH = 1300
@@ -241,19 +242,26 @@ class App(tk.Tk):
         snap = self.manager.get_snapshot()
         cfg = self.manager.config
         left, right = snap.get("left"), snap.get("right")
-        if left is None or right is None:
+        vs = self.manager.virtual_state()
+        if vs is None:
             for side in ("left", "right"):
                 self.debug_widgets[side]["name"].config(text="Not connected")
             self.after(100, self._refresh_debug)
             return
 
-        vs = compute_virtual_state(left, right, cfg)
         self.schematic.set_active(vs["active_buttons"], vs["lt"], vs["rt"], vs["lx"], vs["ly"], vs["rx"], vs["ry"])
 
-        for side, state, x, y, trig, button_map, hat_map in (
-            ("left", left, vs["lx"], vs["ly"], vs["lt"], cfg["left_buttons"], cfg["left_hat"]),
-            ("right", right, vs["rx"], vs["ry"], vs["rt"], cfg["right_buttons"], cfg["right_hat"]),
-        ):
+        if right is None:
+            # Single-stick mode: the one stick drives the left stick but
+            # uses the right stick's trigger, button and hat mapping.
+            rows = (("left", left, vs["lx"], vs["ly"], vs["rt"], cfg["right_buttons"], cfg["right_hat"], "RT"),)
+            self.debug_widgets["right"]["name"].config(text="Not connected (single-stick mode)")
+        else:
+            rows = (
+                ("left", left, vs["lx"], vs["ly"], vs["lt"], cfg["left_buttons"], cfg["left_hat"], "LT"),
+                ("right", right, vs["rx"], vs["ry"], vs["rt"], cfg["right_buttons"], cfg["right_hat"], "RT"),
+            )
+        for side, state, x, y, trig, button_map, hat_map, trig_target in rows:
             widgets = self.debug_widgets[side]
             widgets["name"].config(text=state["name"])
             sensitivity = vs[f"{side}_sensitivity"]
@@ -264,7 +272,6 @@ class App(tk.Tk):
             axes_text = "  ".join(f"{i}:{v:+.2f}" for i, v in enumerate(state["axes"]))
             widgets["axes"].config(text=f"axes: {axes_text}")
 
-            trig_target = "LT" if side == "left" else "RT"
             parts = []
             for i, pressed in enumerate(state["buttons"]):
                 if not pressed:
@@ -431,9 +438,11 @@ class App(tk.Tk):
             self.after(0, self._reset_controller_ui)
 
             sticks, all_joysticks = self.manager.find_sticks()
-            if len(sticks) != 2:
+            if len(sticks) not in (1, 2):
                 names = ", ".join(j.get_name() for j in all_joysticks) or "none"
-                self.after(0, lambda: self._connect_failed(f"Expected 2 T.16000M sticks, found {len(sticks)} ({names})"))
+                self.after(
+                    0, lambda: self._connect_failed(f"Expected 1 or 2 T.16000M sticks, found {len(sticks)} ({names})")
+                )
                 return
 
             def status_cb(msg):
@@ -457,8 +466,11 @@ class App(tk.Tk):
     def _connect_succeeded(self, used_cache):
         self._connecting = False
         left, right = self.manager.left, self.manager.right
-        suffix = " (cached assignment)" if used_cache else " (just calibrated)"
-        self.connection_status.set(f"Connected -> Left: {left.get_name()}  |  Right: {right.get_name()}{suffix}")
+        if right is None:
+            self.connection_status.set(f"Connected -> single-stick mode: {left.get_name()}")
+        else:
+            suffix = " (cached assignment)" if used_cache else " (just calibrated)"
+            self.connection_status.set(f"Connected -> Left: {left.get_name()}  |  Right: {right.get_name()}{suffix}")
         self.toggle_button.config(state="normal")
         self.recalibrate_button.config(state="normal")
         self.abort_button.config(state="disabled")

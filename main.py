@@ -2,6 +2,9 @@
 CLI entry point: combines two Thrustmaster T.16000M joysticks into a single
 virtual Xbox 360 controller: left stick -> left stick, right stick -> right
 stick, and each stick's trigger button -> that side's analog trigger (LT/RT).
+With only one stick plugged in, that stick is the whole controller instead:
+its axes are the left stick and its trigger, buttons and hat use the right
+stick's mapping.
 
 Setup:
     1. Install ViGEmBus driver: https://github.com/ViGEm/ViGEmBus/releases
@@ -23,7 +26,7 @@ import time
 import pygame
 
 import config_store
-from stick_engine import StickManager, Ticker, compute_virtual_state
+from stick_engine import StickManager, Ticker
 
 
 def parse_args(argv):
@@ -46,8 +49,10 @@ def run_test_mode(manager):
     print("Test mode: printing values, Ctrl+C to stop.")
     ticker = Ticker(manager.config["poll_hz"])
     while True:
-        snap = manager.get_snapshot()
-        vs = compute_virtual_state(snap["left"], snap["right"], manager.config)
+        vs = manager.virtual_state()
+        if vs is None:  # nothing read yet
+            ticker.wait()
+            continue
         buttons = ",".join(sorted(vs["active_buttons"])) or "none"
         print(
             f"L=({vs['lx']:+.2f},{vs['ly']:+.2f}) LT={vs['lt']:.0f}   "
@@ -65,6 +70,8 @@ def run_debug_mode(manager):
         state = manager.get_snapshot()
         for name in ("left", "right"):
             old, new = prev[name], state[name]
+            if old is None or new is None:  # nothing read yet, or no second stick
+                continue
             for i, (o, n) in enumerate(zip(old["axes"], new["axes"])):
                 if abs(n - o) > 0.01:
                     print(f"{name} axis {i}: {o:+.3f} -> {n:+.3f}")
@@ -96,9 +103,10 @@ def main():
 
     manager = StickManager()
     sticks, all_joysticks = manager.find_sticks()
-    if len(sticks) != 2:
+    if len(sticks) not in (1, 2):
         names = ", ".join(j.get_name() for j in all_joysticks) or "none"
-        sys.exit(f"Expected 2 T.16000M sticks, found {len(sticks)}. Detected devices: {names}")
+        sys.exit(f"Expected 1 or 2 T.16000M sticks, found {len(sticks)}. Detected devices: {names}")
+    print("Two sticks: duo mode." if len(sticks) == 2 else "One stick: single-stick mode.")
 
     try:
         config = config_store.load_config(args["config_name"])

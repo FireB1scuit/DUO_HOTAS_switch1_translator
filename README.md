@@ -16,7 +16,7 @@
 ## Setup guide
 
 1. Install the [ViGEmBus driver](https://github.com/ViGEm/ViGEmBus/releases) — this lets `vgamepad` create a virtual Xbox 360 controller on Windows.
-2. Plug in both T.16000M joysticks.
+2. Plug in both T.16000M joysticks (or just one, for single-stick mode — see [One stick or two](#one-stick-or-two)).
    - If a game also reacts to the physical sticks, you might need HidHide too — see [Optional: hiding the physical sticks from games](#optional-hiding-the-physical-sticks-from-games-hidhide).
 3. Either grab `HOSAS Translator.exe` from a build (see [Building the .exe](#building-the-exe)) and run it, or run from source:
    ```
@@ -174,6 +174,15 @@ This produces a single-file `dist\HOSAS Translator.exe` with `--noconsole` (no t
 `build.ps1` also explicitly bundles vgamepad's `ViGEmClient.dll` as data (`--add-data`) — vgamepad loads it from a path relative to its own package folder at runtime rather than through a normal Python import, so PyInstaller's automatic dependency analysis doesn't find it on its own. Without that, the exe runs fine but clicking **Start** fails with `Failed to load dynlib/dll ... ViGEmClient.dll`.
 
 If a rebuild fails with a `PermissionError` on `dist\HOSAS Translator.exe`, it's because a previous build of the exe is still running (Windows locks the file while it's open) — close it and rebuild.
+
+## One stick or two
+
+The mode follows how many T.16000Ms are plugged in — there is nothing to set:
+
+- **Two sticks (duo mode)** — one per hand: left stick → left stick, right stick → right stick, as in the table below.
+- **One stick (single-stick mode)** — that stick is the whole controller. The stick itself is the controller's left stick (with the left stick's up/down inversion setting), and its trigger, buttons and hat use the **right stick** column of the mapping: with Default the hat is the face buttons (Y / A / X / B), the trigger is RT, and the base buttons are what they always were. There is no right stick, LT or LB in this mode unless you map them in a custom mapping.
+
+The phone portal switches by itself when a stick is unplugged or plugged back in. The GUI and the command-line tools decide when they connect, so use **Connect / Refresh** (or restart them) after changing the number of sticks. Which USB port counts as left is only asked for, and only saved, with two sticks.
 
 ## Button mapping
 

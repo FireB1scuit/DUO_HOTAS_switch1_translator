@@ -51,6 +51,7 @@
   @keyframes pulse { 50% { opacity: .35; } }
 
   .sticks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sticks.single { grid-template-columns: 1fr; }
   .stick { border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
   .stick b { display: block; font-size: 17px; }
   .stick .port { color: var(--muted); font-size: 13px; }
@@ -99,12 +100,12 @@
   <section>
     <h2>Sticks</h2>
     <div class="stack">
-      <div class="sticks">
+      <div class="sticks" id="sticks">
         <div class="stick" id="stick-left"><b>Left</b><span class="port">–</span><div class="pad"><i></i></div><div class="sens"></div><div class="pressed"></div></div>
         <div class="stick" id="stick-right"><b>Right</b><span class="port">–</span><div class="pad"><i></i></div><div class="sens"></div><div class="pressed"></div></div>
       </div>
       <p class="hint" id="sticks-msg"></p>
-      <div class="row">
+      <div class="row" id="sides-row">
         <button id="swap-btn">Swap sides</button>
         <button id="identify-btn">Wiggle to set</button>
       </div>
@@ -120,7 +121,7 @@
         <button id="delete-btn" class="danger">Delete</button>
       </div>
       <p class="hint" id="profile-hint"></p>
-      <div class="tabs">
+      <div class="tabs" id="side-tabs">
         <button data-side="left" class="on">Left stick</button>
         <button data-side="right">Right stick</button>
       </div>
@@ -144,6 +145,7 @@ let meta = null;
 let status = null;
 let editing = null;      // {name, read_only, config} shown in the editor
 let side = "left";
+let shownMode = null;    // stick mode the editor was last built for
 let saveTimer = null;
 let failures = 0;
 
@@ -182,8 +184,14 @@ function render(next) {
   renderSwitch();
   renderSticks();
   renderProfiles();
+  if (editing && editing.config && shownMode !== status.sticks.mode) buildEditor();
   highlightPressed();
 }
+
+// One stick plugged in: it is the whole controller. The server reports it as
+// "left", and it uses the right stick's button and hat mapping.
+const single = () => status.sticks.mode === "single";
+const mapSide = () => (single() ? "right" : side);
 
 function renderSwitch() {
   const sw = status.switch;
@@ -222,6 +230,10 @@ function renderSwitch() {
 
 function renderSticks() {
   const sticks = status.sticks;
+  $("sticks").classList.toggle("single", single());
+  $("stick-right").style.display = single() ? "none" : "";
+  $("sides-row").style.display = single() ? "none" : "";
+  $("stick-left").querySelector("b").textContent = single() ? "Single stick" : "Left";
   for (const name of ["left", "right"]) {
     const card = $("stick-" + name);
     const stick = sticks[name];
@@ -310,15 +322,20 @@ function buildEditor() {
     : "Changes are saved as you make them and apply right away.";
   $("saved").textContent = "";
 
+  shownMode = status.sticks.mode;
+  $("side-tabs").style.display = single() ? "none" : "";
+  const side = mapSide();
   const map = $("map");
   map.replaceChildren();
   const triggerName = status.switch.available ? (side === "left" ? "ZL" : "ZR") : (side === "left" ? "LT" : "RT");
   const note = document.createElement("p");
   note.className = "hint";
-  note.textContent = `The trigger is always ${triggerName}. Press something on the stick to see which row it is.`;
+  note.textContent = (single() ? "Single-stick mode: the stick is the left stick, and its buttons and hat use the right stick's mapping below. " : "")
+    + `The trigger is always ${triggerName}. Press something on the stick to see which row it is.`;
   map.append(note);
 
-  map.append(checkRow("invert_y_" + side, "Invert up / down"));
+  // The single stick drives the controller's left stick, so that side's setting applies.
+  map.append(checkRow(single() ? "invert_y_left" : "invert_y_" + side, "Invert up / down"));
 
   map.append(heading("Throttle (both sticks)"));
   map.append(checkRow("throttle_sensitivity", "Throttle sets that stick's sensitivity"));
@@ -343,7 +360,7 @@ function buildEditor() {
 }
 
 function highlightPressed() {
-  const stick = status && status.sticks[side];
+  const stick = status && status.sticks[single() ? "left" : side];
   for (const row of $("map").querySelectorAll("label[data-key]")) {
     let hot = false;
     if (stick) {

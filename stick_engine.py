@@ -1,6 +1,7 @@
 """
-Reads the two T.16000M joysticks and (optionally) drives a virtual Xbox 360
-pad from them. Used by both the CLI (main.py) and the GUI (gui.py).
+Reads the T.16000M joysticks - two of them, or one in single-stick mode -
+and (optionally) drives a virtual Xbox 360 pad from them. Used by both the
+CLI (main.py) and the GUI (gui.py).
 
 StickManager owns a single background thread that polls pygame at
 config["poll_hz"] and, while a gamepad is active, feeds a virtual controller
@@ -229,12 +230,34 @@ def throttle_sensitivity(state, config):
     return 1.0 - min(max(travel, 0.0), 1.0) * (1.0 - config["throttle_min_sensitivity"])
 
 
+def compute_single_state(state, config):
+    """Single-stick mode: one stick is the whole controller. Its axes drive
+    the virtual left stick, and its trigger, buttons and hat go through the
+    right stick's mapping. Same shape as compute_virtual_state()."""
+    x = apply_deadzone(safe_axis(state["axes"], config["stick_x_axis"]), config["stick_deadzone"])
+    y = apply_deadzone(safe_axis(state["axes"], config["stick_y_axis"]), config["stick_deadzone"])
+    if config["invert_y_left"]:
+        y = -y
+    sensitivity = throttle_sensitivity(state, config)
+    return {
+        "lx": x * sensitivity, "ly": y * sensitivity, "rx": 0.0, "ry": 0.0,
+        "lt": 0.0, "rt": 1.0 if safe_button(state["buttons"], config["trigger_button"]) else 0.0,
+        "left_sensitivity": sensitivity, "right_sensitivity": 1.0,
+        "active_buttons": _active_target_names(state, config["right_buttons"], config["right_hat"]),
+    }
+
+
 def compute_virtual_state(left_state, right_state, config):
     """Maps raw left/right stick state through a config into what the
     virtual controller would show: processed stick axes, LT/RT, and the set
     of active button target names. The single source of truth for both
     GamepadController (what's actually sent) and the debug view (what's
-    shown), so they can't drift apart."""
+    shown), so they can't drift apart.
+
+    right_state None means single-stick mode, with left_state as the one
+    stick (see compute_single_state)."""
+    if right_state is None:
+        return compute_single_state(left_state, config)
     lx = apply_deadzone(safe_axis(left_state["axes"], config["stick_x_axis"]), config["stick_deadzone"])
     ly = apply_deadzone(safe_axis(left_state["axes"], config["stick_y_axis"]), config["stick_deadzone"])
     rx = apply_deadzone(safe_axis(right_state["axes"], config["stick_x_axis"]), config["stick_deadzone"])
@@ -295,9 +318,8 @@ class GamepadController:
         xusb_names = (config_store.BUTTON_NAME_MAP[name] for name in names)
         return {getattr(self._vg.XUSB_BUTTON, xusb) for xusb in xusb_names if xusb}
 
-    def update(self, left_state, right_state):
-        vs = compute_virtual_state(left_state, right_state, self.config)
-
+    def update(self, vs):
+        """vs: a compute_virtual_state() result."""
         self.gamepad.left_joystick_float(x_value_float=vs["lx"], y_value_float=vs["ly"] * self._y_sign)
         self.gamepad.right_joystick_float(x_value_float=vs["rx"], y_value_float=vs["ry"] * self._y_sign)
         self.gamepad.left_trigger_float(value_float=vs["lt"])
@@ -323,7 +345,11 @@ class GamepadController:
 
 
 class StickManager:
-    """Owns the two joystick handles and a background polling thread.
+    """Owns the joystick handles and a background polling thread.
+
+    With two sticks it runs in duo mode; with only one plugged in, that
+    stick is held as left, right is None, and it runs in single-stick mode
+    (see config_store.MODE_SINGLE).
 
     Call connect() once sticks are found, then start_polling(). GUI code
     reads get_snapshot() from the Tk main loop via after(); it must not
@@ -355,6 +381,13 @@ class StickManager:
         return sticks, all_joysticks
 
     def assign(self, sticks, recalibrate=False, status_cb=None, progress_cb=None, should_abort=None):
+        if len(sticks) == 1:
+            # Single-stick mode: nothing to tell apart, and the saved
+            # left/right ports stay as they are for when both are back.
+            with self._lock:
+                self._sticks = list(sticks)
+                self.left, self.right = sticks[0], None
+            return True
         left, right, used_cache = identify_sticks(
             sticks, recalibrate=recalibrate, status_cb=status_cb, progress_cb=progress_cb, should_abort=should_abort
         )
@@ -367,6 +400,8 @@ class StickManager:
         """Makes the other stick the left one and remembers it, without
         having to stop polling."""
         with self._lock:
+            if self.right is None:
+                return
             self.left, self.right = self.right, self.left
             save_cached_left(self._sticks, self.left)
 
@@ -375,10 +410,15 @@ class StickManager:
         with self._lock:
             if not self._sticks or self.left is None:
                 return None, None
-            return stick_port(self._sticks, self.left), stick_port(self._sticks, self.right)
+            right_port = stick_port(self._sticks, self.right) if self.right is not None else None
+            return stick_port(self._sticks, self.left), right_port
 
     def is_connected(self):
-        return self.left is not None and self.right is not None
+        return self.left is not None
+
+    @property
+    def mode(self):
+        return config_store.MODE_SINGLE if self.right is None else config_store.MODE_DUO
 
     def set_config(self, config):
         with self._lock:
@@ -419,18 +459,18 @@ class StickManager:
                 with self._lock:
                     left, right = self.left, self.right
                 left_raw = read_raw_state(left)
-                right_raw = read_raw_state(right)
+                right_raw = read_raw_state(right) if right is not None else None
                 with self._lock:
                     self._state = {
                         "left": {"name": left.get_name(), **left_raw},
-                        "right": {"name": right.get_name(), **right_raw},
+                        "right": {"name": right.get_name(), **right_raw} if right is not None else None,
                     }
                 if (left_raw, right_raw) != last_raw:
                     last_raw = (left_raw, right_raw)
                     self.changed.set()
                 with self._gamepad_lock:
                     if self.gamepad_active and self._gamepad is not None:
-                        self._gamepad.update(left_raw, right_raw)
+                        self._gamepad.update(compute_virtual_state(left_raw, right_raw, self.config))
             except Exception as exc:  # keep the loop alive; surface the error to the GUI
                 self.last_error = str(exc)
             ticker.wait()
@@ -438,6 +478,14 @@ class StickManager:
     def get_snapshot(self):
         with self._lock:
             return dict(self._state)
+
+    def virtual_state(self):
+        """The last read mapped through the config (see
+        compute_virtual_state), or None while nothing has been read yet."""
+        snap = self.get_snapshot()
+        if snap["left"] is None:
+            return None
+        return compute_virtual_state(snap["left"], snap["right"], self.config)
 
     # -- virtual controller -------------------------------------------
     def start_gamepad(self):

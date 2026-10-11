@@ -1,5 +1,5 @@
 """
-Linux-only: sends the two T.16000M sticks to a Nintendo Switch over
+Linux-only: sends the T.16000M sticks to a Nintendo Switch over
 Bluetooth, by making this machine pose as a Pro Controller (via NXBT)
 instead of creating a local virtual Xbox 360 pad.
 
@@ -10,6 +10,9 @@ Switch buttons here (see XBOX_TO_SWITCH).
 Must run as root (NXBT reconfigures BlueZ and opens the HID L2CAP ports):
 
     sudo env HOME=$HOME .venv/bin/python switch_bridge.py [--config NAME] [--recalibrate] [--switch MAC]
+
+With only one stick plugged in it runs single-stick mode: that stick is the
+whole controller (see config_store.MODE_SINGLE).
 
 First pairing: open Controllers -> Change Grip/Order on the Switch. Later
 runs try to reconnect to the already-paired Switch first.
@@ -27,7 +30,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")  # no display when run under s
 import pygame
 
 import config_store
-from stick_engine import StickManager, Ticker, compute_virtual_state
+from stick_engine import StickManager, Ticker
 
 # Config target name (Xbox naming) -> NXBT input packet key. Face buttons
 # map by position, not by label: Nintendo swaps A/B and X/Y relative to
@@ -148,9 +151,10 @@ def main():
     pygame.init()
     manager = StickManager()
     sticks, all_joysticks = manager.find_sticks()
-    if len(sticks) != 2:
+    if len(sticks) not in (1, 2):
         names = ", ".join(j.get_name() for j in all_joysticks) or "none"
-        sys.exit(f"Expected 2 T.16000M sticks, found {len(sticks)}. Detected devices: {names}")
+        sys.exit(f"Expected 1 or 2 T.16000M sticks, found {len(sticks)}. Detected devices: {names}")
+    print("Two sticks: duo mode." if len(sticks) == 2 else "One stick: single-stick mode.", flush=True)
     manager.set_config(config_store.load_config(config_name))
     manager.assign(sticks, recalibrate="--recalibrate" in argv, status_cb=lambda m: print(m, flush=True))
     manager.start_polling()
@@ -190,9 +194,8 @@ def main():
                     index = connect()
                     continue
             if state == "connected":
-                snap = manager.get_snapshot()
-                if snap["left"] is not None and snap["right"] is not None:
-                    vs = compute_virtual_state(snap["left"], snap["right"], manager.config)
+                vs = manager.virtual_state()
+                if vs is not None:
                     packet = build_packet(nx, vs)
                     if packet != last_packet:
                         nx.set_controller_input(index, packet)
