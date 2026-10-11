@@ -82,9 +82,10 @@ DEFAULT_CONFIG = {
         "-1,0": "X",
         "-1,-1": "RIGHT_THUMB",
     },
-    # Single-stick mode (one stick plugged in, see MODE_SINGLE): the right
-    # stick's mapping with the stick-top buttons changed, since one hand has
-    # to reach both triggers. The trigger itself is always RT.
+    # Single-stick mode (one stick plugged in, see MODE_SINGLE): the left
+    # stick's base buttons, the right stick's hat, and stick-top buttons of
+    # its own, since one hand has to reach both triggers. The trigger itself
+    # is always RT.
     "single_buttons": {
         "1": "B",
         "2": "LEFT_TRIGGER",
@@ -110,9 +111,13 @@ DEFAULT_CONFIG = {
     },
 }
 
-# Stick-top buttons of single-stick mode, as in DEFAULT_CONFIG: applied over
-# the right stick's mapping for configs saved before the mode existed.
+# Stick-top buttons of single-stick mode, as in DEFAULT_CONFIG: used with
+# the left stick's base buttons for configs saved before the mode existed.
 SINGLE_TOP_BUTTONS = {"1": "B", "2": "LEFT_TRIGGER", "3": "A"}
+
+# Buttons from this index up are on the T.16000M's base; the ones below are
+# on the stick itself.
+FIRST_BASE_BUTTON = 4
 
 # Maps the button names used in config files to vgamepad's XUSB_BUTTON enum.
 # None means the Xbox 360 pad has no such button: the name is still a valid
@@ -227,9 +232,10 @@ def load_config(name):
         config = json.load(f)
     merged = {**DEFAULT_CONFIG, **config}
     # Saved before single-stick mode existed: base it on this config's own
-    # right stick rather than on Default's.
+    # sticks rather than on Default's.
     if "single_buttons" not in config:
-        merged["single_buttons"] = {**merged["right_buttons"], **SINGLE_TOP_BUTTONS}
+        base = {k: v for k, v in merged["left_buttons"].items() if int(k) >= FIRST_BASE_BUTTON}
+        merged["single_buttons"] = {**base, **SINGLE_TOP_BUTTONS}
     if "single_hat" not in config:
         merged["single_hat"] = dict(merged["right_hat"])
     return merged
