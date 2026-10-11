@@ -1,0 +1,3 @@
+pygame-ce
+# Linux only, and only needed to emulate the controller (not for --test/--debug)
+nxbt; sys_platform == "linux"

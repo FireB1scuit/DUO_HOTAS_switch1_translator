@@ -1,0 +1,13 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__
+
+# Machine-specific left/right stick assignment, tied to physical USB ports
+stick_calibration.json
+
+# PyInstaller build output
+build/
+dist/
+*.spec
