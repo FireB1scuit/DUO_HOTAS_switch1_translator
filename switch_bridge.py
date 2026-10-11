@@ -9,10 +9,12 @@ Switch buttons here (see XBOX_TO_SWITCH).
 
 Must run as root (NXBT reconfigures BlueZ and opens the HID L2CAP ports):
 
-    sudo env HOME=$HOME .venv/bin/python switch_bridge.py [--config NAME] [--recalibrate]
+    sudo env HOME=$HOME .venv/bin/python switch_bridge.py [--config NAME] [--recalibrate] [--switch MAC]
 
 First pairing: open Controllers -> Change Grip/Order on the Switch. Later
 runs try to reconnect to the already-paired Switch first.
+With more than one paired
+Switch, --switch picks which one to reconnect to.
 """
 
 import multiprocessing
@@ -152,8 +154,10 @@ def main():
     manager.assign(sticks, recalibrate="--recalibrate" in argv, status_cb=lambda m: print(m, flush=True))
     manager.start_polling()
 
+    only_switch = argv[argv.index("--switch") + 1] if "--switch" in argv else None
+
     def connect():
-        known = nx.get_switch_addresses()
+        known = [only_switch] if only_switch else nx.get_switch_addresses()
         print(
             "Waiting for the Switch" + (f" (known: {', '.join(known)})" if known else "")
             + " - if it doesn't connect, open Controllers -> Change Grip/Order.",
