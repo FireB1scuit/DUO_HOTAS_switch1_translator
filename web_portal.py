@@ -27,6 +27,7 @@ import socket
 import sys
 import threading
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -535,7 +536,17 @@ def main():
     Handler.portal = portal
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
-    worker = threading.Thread(target=portal.run, daemon=True)
+
+    def run_worker():
+        try:
+            portal.run()
+        except Exception:
+            # Without the worker the page would stay up but nothing would
+            # reach the Switch: stop cleanly and let systemd start us again.
+            traceback.print_exc()
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    worker = threading.Thread(target=run_worker, daemon=True)
     worker.start()
 
     def on_sigterm(_signum, _frame):
