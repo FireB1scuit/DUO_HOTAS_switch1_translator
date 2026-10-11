@@ -136,9 +136,9 @@ const UNMAPPED = "";
 const XBOX_LABELS = {
   A: "A", B: "B", X: "X", Y: "Y", LEFT_SHOULDER: "LB", RIGHT_SHOULDER: "RB",
   DPAD_UP: "D-pad up", DPAD_DOWN: "D-pad down", DPAD_LEFT: "D-pad left", DPAD_RIGHT: "D-pad right",
-  LEFT_THUMB: "Left stick click", RIGHT_THUMB: "Right stick click", BACK: "Back", START: "Start", GUIDE: "Guide",
+  LEFT_THUMB: "Left stick click", RIGHT_THUMB: "Right stick click", BACK: "Back", START: "Start", GUIDE: "Guide", CAPTURE: "Capture (Switch only)",
 };
-const SWITCH_LABELS = { MINUS: "−", PLUS: "+", HOME: "Home" };
+const SWITCH_LABELS = { MINUS: "−", PLUS: "+", HOME: "Home", CAPTURE: "Capture" };
 
 let meta = null;
 let status = null;
@@ -172,6 +172,7 @@ function targetLabel(name) {
   const onSwitch = meta.switch_names[name];
   if (!status.switch.available) return xbox;
   if (!onSwitch || onSwitch.startsWith("DPAD")) return xbox;
+  if (onSwitch === name) return SWITCH_LABELS[onSwitch] || onSwitch;  // no Xbox counterpart
   return `${SWITCH_LABELS[onSwitch] || onSwitch}  (Xbox ${xbox})`;
 }
 

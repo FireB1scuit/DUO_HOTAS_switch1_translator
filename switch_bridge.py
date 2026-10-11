@@ -47,6 +47,7 @@ XBOX_TO_SWITCH = {
     "BACK": "MINUS",
     "START": "PLUS",
     "GUIDE": "HOME",
+    "CAPTURE": "CAPTURE",
 }
 
 AGENT_PATH = "/hosas/agent"

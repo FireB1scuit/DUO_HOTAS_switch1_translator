@@ -85,6 +85,8 @@ DEFAULT_CONFIG = {
 }
 
 # Maps the button names used in config files to vgamepad's XUSB_BUTTON enum.
+# None means the Xbox 360 pad has no such button: the name is still a valid
+# target, but only the Switch bridge does anything with it.
 BUTTON_NAME_MAP = {
     "A": "XUSB_GAMEPAD_A",
     "B": "XUSB_GAMEPAD_B",
@@ -101,6 +103,7 @@ BUTTON_NAME_MAP = {
     "BACK": "XUSB_GAMEPAD_BACK",
     "START": "XUSB_GAMEPAD_START",
     "GUIDE": "XUSB_GAMEPAD_GUIDE",
+    "CAPTURE": None,
 }
 
 UNMAPPED = "(unmapped)"

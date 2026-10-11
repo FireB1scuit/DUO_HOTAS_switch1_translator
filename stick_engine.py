@@ -287,9 +287,13 @@ class GamepadController:
             | set(config["left_hat"].values())
             | set(config["right_hat"].values())
         )
-        self.all_buttons = {
-            getattr(self._vg.XUSB_BUTTON, config_store.BUTTON_NAME_MAP[name]) for name in mapped_names
-        }
+        self.all_buttons = self._vg_buttons(mapped_names)
+
+    def _vg_buttons(self, names):
+        """vgamepad buttons for the given target names, skipping targets
+        the Xbox 360 pad doesn't have (e.g. the Switch's CAPTURE)."""
+        xusb_names = (config_store.BUTTON_NAME_MAP[name] for name in names)
+        return {getattr(self._vg.XUSB_BUTTON, xusb) for xusb in xusb_names if xusb}
 
     def update(self, left_state, right_state):
         vs = compute_virtual_state(left_state, right_state, self.config)
@@ -299,9 +303,7 @@ class GamepadController:
         self.gamepad.left_trigger_float(value_float=vs["lt"])
         self.gamepad.right_trigger_float(value_float=vs["rt"])
 
-        active_vg = {
-            getattr(self._vg.XUSB_BUTTON, config_store.BUTTON_NAME_MAP[name]) for name in vs["active_buttons"]
-        }
+        active_vg = self._vg_buttons(vs["active_buttons"])
         for vg_button in self.all_buttons:
             if vg_button in active_vg:
                 self.gamepad.press_button(button=vg_button)
