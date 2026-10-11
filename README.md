@@ -73,6 +73,17 @@ Everything is remembered (same files as the GUI), including whether it was conne
 
 To start it at boot, see the comments in [hosas-portal.service](hosas-portal.service). It replaces `switch_bridge.py` — only one of the two can use the Bluetooth adapter at a time.
 
+##### Running headless: turn the desktop off
+
+With the portal started at boot, the machine needs no screen, and the graphical desktop is then just competing with the translator for CPU — on a Raspberry Pi 4 the idle desktop took about half a core, and an open `gui.py` most of another. To boot straight to the console instead:
+
+```
+sudo systemctl set-default multi-user.target
+sudo systemctl stop display-manager        # or reboot
+```
+
+SSH and the portal keep working; nothing is uninstalled. `sudo systemctl set-default graphical.target` and a reboot bring the desktop back.
+
 ##### Away from home: fallback Wi-Fi hotspot
 
 The portal needs the phone and this machine on the same network. With no Wi-Fi around, the machine can provide one itself:
